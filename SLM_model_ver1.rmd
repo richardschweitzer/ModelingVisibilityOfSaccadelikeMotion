@@ -51,7 +51,7 @@ rf_sd <- 0.15 # RF size in dva
 masking_times <- c(0, 12.5, 50, 200) # what masking times to test
 spat_res <- 0.05 # spatial resolution of the visual processing grid
 lat <- 40 # latency of the temporal response function
-all_sca <- c(15) # scale/s of the temporal response function
+all_sca <- c(12.5) # scale/s of the temporal response function
 all_sha <- c(1.6) # shape/s of the temporal response function
 # make sure we'll only run one temporal response function:
 assert_that(length(all_sca)==length(all_sha))
@@ -63,6 +63,9 @@ assert_that(length(all_sca)==1)
 # related to Naka-Rushton normalization and probability summation
 c50 <- 0.3 # prop of maximum input signal at which the hyperbolic function is at 50%
 beta <- 1.5 # slope of psychometric function
+# for Model response fits
+lapse_rate <- 0.02
+guess_rate <- 0.5
 
 # Noise to the model:
 # ... the ocular-drift random walk
@@ -74,10 +77,9 @@ add_amp_noise <- TRUE
 # how to run the model simulation
 do_result_plot <- FALSE
 do_this_on_GPU <- TRUE
-n_cores <- 4
-n_iterations <- 25 # for tests: 25
+n_cores <- 2 # think about how much GPU memory you have!
+n_iterations <- 250 # for tests: 25
 do_compute_pop_mean <- TRUE # TRUE: stimulus position signal using the 'population response'
-
 
 ```
 
@@ -467,12 +469,12 @@ p_all_aligned <- plot_grid(p_speed_x,
                        nrow = 4, align = "hv")
 p_all_aligned
 ggsave(filename = file.path(slmf_fig_path, "p_all_aligned.svg"), plot = p_all_aligned,
-       width = 10, height = 14, units = "in")
+       width = 12, height = 14, units = "in")
 ```
 
 ... another version, with normalization:
 
-```{r}
+```{r, fig.width=16, fig.height=10}
 p_example <- plot_grid(p_speed_x + theme(legend.position = "bottom", legend.direction = "horizontal"), 
                        p_speed_y + theme(legend.position = "bottom", legend.direction = "horizontal"), 
                        plot_grid(p_NR + theme(legend.position = "bottom", legend.direction = "horizontal"), 
@@ -486,8 +488,8 @@ ggsave(filename = file.path(slmf_fig_path, "p_example.svg"), plot = p_example,
 
 Clean up:
 ```{r}
-rm(speed_df_long, p_speed_x, speed_df_x, p_speed_y, speed_df_y, p_speed_w, speed_df_w, 
-   p_evidence_acc)
+rm(speed_df_long, speed_df_w, speed_df_x, speed_df_y, NR_df,
+   p_speed_x, p_speed_y, p_speed_w, p_evidence_acc, p_NR)
 gc()
 ```
 
@@ -498,279 +500,297 @@ Now this is where the heavy computation starts.
 We'll run through all conditions and perform a number of iterations for each single condition, adding noise add each step. 
 
 ```{r, fig.width=16, fig.height=8}
-# this is where results will be saved
-all_res <- vector(mode = "list", 
-                  length = length(unique(st$condition_ID))*length(masking_times)*n_visual_proc_conditions)
-all_stim <- vector(mode = "list", 
-                   length = length(unique(st$condition_ID))*length(masking_times)*n_visual_proc_conditions)
-# run through conditions
-all_condition_i <- 0
-for (visual_proc_condition_i in 1:n_visual_proc_conditions) {
-  for (masking_time in masking_times) {
-    for (this_condition_i in 1:length(unique(st$condition_ID))) {
-      # get the right condition
-      all_condition_i <- all_condition_i + 1
-      this_condition <- unique(st$condition_ID)[this_condition_i]
-      condition_def <- paste(all_condition_i, 
-                             paste(all_sca[visual_proc_condition_i], all_sha[visual_proc_condition_i], 
-                                   masking_time, this_condition), sep = ", ")
-      print(condition_def)
-      # this is the condition
-      this_readout <- st[condition_ID==this_condition, c("amp", "velFac")]
-      this_readout <- this_readout[ , lapply(.SD, unique)]
-      this_readout$t_start <- st[condition_ID==this_condition & t_on>=(-masking_time), min(t)]
-      this_readout$t_end <- st[condition_ID==this_condition & t_off<=(masking_time), max(t)]
-      this_readout$mask_time <- masking_time
-      sca <- all_sca[visual_proc_condition_i]
-      this_readout$visual_scale <- sca
-      sha <- all_sha[visual_proc_condition_i]
-      this_readout$visual_shape <- sha
-      # find the relevant conditions
-      trial_index <- st$condition_ID==this_condition & st$t>=this_readout$t_start & st$t<=this_readout$t_end
-      # save this real quick
-      st_trial <- st[trial_index]
-      st_trial$mask_time <- masking_time
-      st_trial$visual_scale <- sca
-      st_trial$visual_shape <- sha
-      all_stim[[all_condition_i]] <- st_trial
-      rm(st_trial)
-      
-      # make a cluster
-      if (n_iterations > 1 & n_cores > 1) {
-        require(doSNOW)
-        snowCluster <- makeCluster(n_cores) # , outfile=""
-        Sys.sleep(0.01)
-        registerDoSNOW(snowCluster)
-        Sys.sleep(0.01)
-        `%dofun%` <- `%dopar%`
-      } else {
-        snowCluster <- NULL
-        `%dofun%` <- `%do%`
+# shall we compute it again or should we simply load the results?
+do_run_model <- TRUE
+
+# run the simulation?
+if (do_run_model) {
+  
+  # these are the lists where results will be saved
+  all_res <- vector(mode = "list", 
+                    length = length(unique(st$condition_ID))*length(masking_times)*n_visual_proc_conditions)
+  all_stim <- vector(mode = "list", 
+                     length = length(unique(st$condition_ID))*length(masking_times)*n_visual_proc_conditions)
+  
+  # run through conditions
+  all_condition_i <- 0
+  for (visual_proc_condition_i in 1:n_visual_proc_conditions) {
+    for (masking_time in masking_times) {
+      for (this_condition_i in 1:length(unique(st$condition_ID))) {
+        
+        # get the right condition
+        all_condition_i <- all_condition_i + 1
+        this_condition <- unique(st$condition_ID)[this_condition_i]
+        condition_def <- paste(all_condition_i, 
+                               paste(all_sca[visual_proc_condition_i], all_sha[visual_proc_condition_i], 
+                                     masking_time, this_condition), sep = ", ")
+        print(condition_def)
+        
+        # this is the condition specification that we'll save for later
+        this_readout <- st[condition_ID==this_condition, c("amp", "velFac")]
+        this_readout <- this_readout[ , lapply(.SD, unique)]
+        this_readout$t_start <- st[condition_ID==this_condition & t_on>=(-masking_time), min(t)]
+        this_readout$t_end <- st[condition_ID==this_condition & t_off<=(masking_time), max(t)]
+        this_readout$mask_time <- masking_time
+        sca <- all_sca[visual_proc_condition_i]
+        this_readout$visual_scale <- sca
+        sha <- all_sha[visual_proc_condition_i]
+        this_readout$visual_shape <- sha
+        
+        # find the stimulus according to this condition
+        trial_index <- st$condition_ID==this_condition & st$t>=this_readout$t_start & st$t<=this_readout$t_end
+        # get (and save) that stimulus
+        st_trial <- st[trial_index]
+        st_trial$mask_time <- masking_time
+        st_trial$visual_scale <- sca
+        st_trial$visual_shape <- sha
+        all_stim[[all_condition_i]] <- st_trial
+        rm(st_trial)
+        
+        # make a cluster
+        if (n_iterations > 1 & n_cores > 1) {
+          require(doSNOW)
+          snowCluster <- makeCluster(n_cores) # , outfile=""
+          Sys.sleep(0.01)
+          registerDoSNOW(snowCluster)
+          Sys.sleep(0.01)
+          `%dofun%` <- `%dopar%`
+        } else {
+          snowCluster <- NULL
+          `%dofun%` <- `%do%`
+        }
+        # do the iterations
+        res <- foreach(iter_i = 1:n_iterations, .verbose = FALSE, .errorhandling = "stop",
+                       .packages = c("data.table", "assertthat", "doSNOW", "foreach", "torch"), 
+                       #.export = c('visual_proc_func', 'self_avoiding_walk', 'noise_gen'),
+                       .combine = 'rbind' ) %dofun% {
+                         
+                         # this is this iteration's trial
+                         st_trial <- st[trial_index]
+                         
+                         # simulate drift motion for this iteration
+                         walk_present <- self_avoiding_walk(n_steps=nrow(st_trial), # how many steps for the random walk?
+                                                            L=lattice_size, # dimensions of the lattice
+                                                            U_slope=lattice_lambda, # the slope of the 2D quadratic potential
+                                                            do_final_smooth=TRUE) 
+                         walk_present$x <- (walk_present$x - lattice_size/2) / scr_ppd
+                         walk_present$y <- (walk_present$y - lattice_size/2) / scr_ppd
+                         # add the drift, i.e., the noise
+                         st_trial$x <- st_trial$x + walk_present$x
+                         st_trial$y <- st_trial$y + walk_present$y
+                         rm(walk_present)
+                         
+                         # find the range
+                         trial_x_range <- c(min(st_trial[ , x]), max(st_trial[ , x]))
+                         trial_y_range <- c(min(st_trial[ , y]), max(st_trial[ , y]))
+                         trial_t_range <- c(min(st_trial[ , t]), max(st_trial[ , t]))
+                         # select the conditions
+                         st_present <- st_trial[is_static==FALSE]
+                         st_absent <- st_trial[is_static==TRUE]
+                         
+                         ## perform visual processing
+                         # present
+                         sim_present <- visual_proc_func(do_on_GPU = do_this_on_GPU, 
+                                                         temporal_latency = lat, # temporal delay
+                                                         temporal_scale = sca, temporal_shape = sha, # temporal dynamics
+                                                         contrast_thres = 0, 
+                                                         signal_x = st_present[ , x], 
+                                                         signal_y = st_present[ , y], 
+                                                         signal_t = st_present[ , t],
+                                                         signal_x_range = trial_x_range,
+                                                         signal_y_range = trial_y_range,
+                                                         signal_t_range = trial_t_range,
+                                                         temporal_resolution = scr_fd, 
+                                                         spatial_resolution = spat_res, # in dva
+                                                         gaussian_aperture_sd = stim_sd, # in dva
+                                                         spatial_field_sd = rf_sd, # in dva
+                                                         debug_mode = FALSE, show_result_plot = FALSE, 
+                                                         output_final_matrices = TRUE) 
+                         sim_sac_df_present <- reshape2::melt(sim_present[[2]], # 2: not normalized, 3: normalized
+                                                              varnames = c("y", "x", "t"), value.name = "w_present")
+                         setDT(sim_sac_df_present)
+                         rm(sim_present)
+                         # absent
+                         sim_absent <- visual_proc_func(do_on_GPU = do_this_on_GPU, 
+                                                        temporal_latency = lat, # temporal delay
+                                                        temporal_scale = sca, temporal_shape = sha, # temporal dynamics
+                                                        contrast_thres = 0, 
+                                                        signal_x = st_absent[ , x], 
+                                                        signal_y = st_absent[ , y], 
+                                                        signal_t = st_absent[ , t],
+                                                        signal_x_range = trial_x_range,
+                                                        signal_y_range = trial_y_range,
+                                                        signal_t_range = trial_t_range,
+                                                        temporal_resolution = scr_fd, 
+                                                        spatial_resolution = spat_res, # in dva
+                                                        gaussian_aperture_sd = stim_sd, # in dva
+                                                        spatial_field_sd = rf_sd, # in dva
+                                                        debug_mode = FALSE, show_result_plot = FALSE, 
+                                                        output_final_matrices = TRUE) 
+                         sim_sac_df_absent <- reshape2::melt(sim_absent[[2]], # 2: not normalized, 3: normalized
+                                                             varnames = c("y", "x", "t"), value.name = "w_absent")
+                         setDT(sim_sac_df_absent)
+                         rm(sim_absent)
+                         
+                         # # merge the two activity patterns
+                         # sim_sac_df <- merge.data.table(sim_sac_df_absent, sim_sac_df_present, by = c("y", "x", "t"))
+                         # setDT(sim_sac_df)
+                         
+                         # instead of merging, which takes considerable time, let us cbind
+                         # check whether data frames are identical (they should be)
+                         assert_that(all(sim_sac_df_absent[ , c("t","x","y")]==sim_sac_df_present[ , c("t","x","y")]))
+                         # now cbind, only via reference
+                         sim_sac_df <- sim_sac_df_present
+                         sim_sac_df[ , w_absent := sim_sac_df_absent[ , c("w_absent")] ]
+                         # clean up
+                         rm(sim_sac_df_present, sim_sac_df_absent)
+                         
+                         # add amplitude-dependent noise
+                         if (add_amp_noise) {
+                           sim_sac_df[ , w_absent := w_absent + rnorm(n = length(w_absent), 
+                                                                      mean = 0, sd = w_absent/8)]
+                           sim_sac_df[ , w_present := w_present + rnorm(n = length(w_present), 
+                                                                        mean = 0, sd = w_present/8)]
+                         }
+                         
+                         # combine activity
+                         sim_sac_df[ , w_full := w_absent + w_present]
+                         # compute the model by Diamond et al (2000)
+                         sim_sac_df[ , O_present := w_present^2 / (w_present^2 + C^2)]
+                         sim_sac_df[ , O_absent := w_absent^2 / (w_absent^2 + C^2)]
+                         sim_sac_df[ , O_full := w_full^2 / (w_full^2 + C^2)]
+                         
+                         # compute the locus of maximum evidence at each time point
+                         max_O <- sim_sac_df[ , c(pop_mean(x = x, y = y, z = w_present, w = O_present, 
+                                                           do_compute_pop_mean = do_compute_pop_mean), 
+                                                  pop_mean(x = x, y = y, z = w_absent, w = O_absent, 
+                                                           do_compute_pop_mean = do_compute_pop_mean), 
+                                                  pop_mean(x = x, y = y, z = w_full, w = O_full, 
+                                                           do_compute_pop_mean = do_compute_pop_mean)), 
+                                              by = .(t)]
+                         colnames(max_O) <- c("t", 
+                                              "O_present", "x_present", "y_present", "w_present", 
+                                              "x_present_m", "y_present_m", "w_present_m", 
+                                              "O_absent", "x_absent", "y_absent", "w_absent", 
+                                              "x_absent_m", "y_absent_m", "w_absent_m", 
+                                              "O_full", "x_full", "y_full", "w_full", 
+                                              "x_full_m", "y_full_m", "w_full_m")
+                         
+                         # now perform the probability summation (Pelli, 1987)
+                         max_O$prob_sum <- 0
+                         for (t_now in max_O$t) {
+                           max_O$prob_sum[max_O$t==t_now] <- sum(abs(max_O$O_full[max_O$t<=t_now]-
+                                                                       max_O$O_absent[max_O$t<=t_now])^beta)^(1/beta)
+                         }
+                         max_O$iter_i <- iter_i
+                         rm(sim_sac_df)
+                         
+                         # return this readout
+                         return(max_O)
+                       } # end of iterations
+        # stop cluster
+        if (!is.null(snowCluster)) {
+          Sys.sleep(0.01)
+          stopCluster(snowCluster)
+          Sys.sleep(0.01)
+        }
+        
+        # aggregate across iterations!
+        res_agg <- res[ , .(O_present = mean(O_present), O_present_SD = sd(O_present), 
+                            x_present = mean(x_present), x_present_SD = sd(x_present), 
+                            y_present = mean(y_present), y_present_SD = sd(y_present),
+                            w_present = mean(w_present), w_present_SD = sd(w_present),
+                            x_present.m = mean(x_present_m), x_present.m_SD = sd(x_present_m), 
+                            y_present.m = mean(y_present_m), y_present.m_SD = sd(y_present_m),
+                            w_present.m = mean(w_present_m), w_present.m_SD = sd(w_present_m),
+                            O_absent = mean(O_absent), O_absent_SD = sd(O_absent), 
+                            x_absent = mean(x_absent), x_absent_SD = sd(x_absent), 
+                            y_absent = mean(y_absent), y_absent_SD = sd(y_absent), 
+                            w_absent = mean(w_absent), w_absent_SD = sd(w_absent),
+                            x_absent.m = mean(x_absent_m), x_absent.m_SD = sd(x_absent_m), 
+                            y_absent.m = mean(y_absent_m), y_absent.m_SD = sd(y_absent_m),
+                            w_absent.m = mean(w_absent_m), w_absent.m_SD = sd(w_absent_m),
+                            O_full = mean(O_full), O_full_SD = sd(O_full), 
+                            x_full = mean(x_full), x_full_SD = sd(x_full), 
+                            y_full = mean(y_full), y_full_SD = sd(y_full),
+                            w_full = mean(w_full), w_full_SD = sd(w_full),
+                            x_full.m = mean(x_full_m), x_full.m_SD = sd(x_full_m), 
+                            y_full.m = mean(y_full_m), y_full.m_SD = sd(y_full_m),
+                            w_full.m = mean(w_full_m), w_full.m_SD = sd(w_full_m),
+                            prob_sum = mean(prob_sum), prob_sum_SD = sd(prob_sum) ), 
+                        by = .(t)]
+        res_agg <- cbind(res_agg, this_readout) # append condition descriptions
+        
+        # plot current results, if that's needed
+        if (do_result_plot) {
+          par(mfrow=c(1,5))
+          # also, add a 5th plot for the maximum weights over time
+          plot(res_agg$t, res_agg$w_full, main = condition_def, type = "l", col = "red", 
+               ylim = c(0, max(res_agg$w_full))) 
+          lines(res_agg$t, res_agg$w_present, col = "blue")
+          lines(res_agg$t, res_agg$w_absent, col = "black")
+          # O over time
+          plot(res_agg$t, res_agg$O_full, type = "l", col = "red", ylim = c(0, 1))
+          lines(res_agg$t, res_agg$O_present, col = "blue")
+          lines(res_agg$t, res_agg$O_absent, col = "black")
+          # compute evidence for signal 
+          plot(res_agg$t, res_agg$prob_sum, type = "l")
+          abline(h = k)
+          # show the real retinal trajectory
+          plot(st[trial_index, t], st[trial_index, x], col = "red", type = "l", 
+               ylim = c(min(st[trial_index, x])-0.2, max(st[trial_index, x])+0.2))
+          lines(st[trial_index, t], st[trial_index, y], col = "red")
+          points(st[trial_index & is_static==TRUE, t], st[trial_index & is_static==TRUE, x], col = "black", pch = '.')
+          points(st[trial_index & is_static==TRUE, t], st[trial_index & is_static==TRUE, y], col = "black", pch = '.')
+          # show the position signal
+          plot(res_agg$t[round(res_agg$t, 1)>res_agg$t[1]+lat], 
+               res_agg$x_full.m[round(res_agg$t, 1)>res_agg$t[1]+lat], col = "red", type = "l", 
+               ylim = c(min(st[trial_index, x])-0.2, max(st[trial_index, x])+0.2))
+          lines(res_agg$t[round(res_agg$t, 1)>res_agg$t[1]+lat], 
+                res_agg$y_full.m[round(res_agg$t, 1)>res_agg$t[1]+lat], col = "red")
+          points(res_agg$t[round(res_agg$t, 1)>res_agg$t[1]+lat], 
+                 res_agg$x_absent.m[round(res_agg$t, 1)>res_agg$t[1]+lat], col = "black", pch = '.')
+          points(res_agg$t[round(res_agg$t, 1)>res_agg$t[1]+lat], 
+                 res_agg$y_absent.m[round(res_agg$t, 1)>res_agg$t[1]+lat], col = "black", pch = '.')
+          # end of plot
+          par(mfrow=c(1,1))
+        }
+        
+        # save current results
+        all_res[[all_condition_i]] <- res_agg
       }
-      # do the iterations
-      res <- foreach(iter_i = 1:n_iterations, .verbose = FALSE, .errorhandling = "stop",
-                     .packages = c("data.table", "assertthat", "doSNOW", "foreach", "torch"), 
-                     #.export = c('visual_proc_func', 'self_avoiding_walk', 'noise_gen'),
-                     .combine = 'rbind' ) %dofun% {
-                       
-                       # this is this iteration's trial
-                       st_trial <- st[trial_index]
-                       
-                       # simulate drift motion for this iteration
-                       walk_present <- self_avoiding_walk(n_steps=nrow(st_trial), # how many steps for the random walk?
-                                                          L=lattice_size, # dimensions of the lattice
-                                                          U_slope=lattice_lambda, # the slope of the 2D quadratic potential
-                                                          do_final_smooth=TRUE) 
-                       walk_present$x <- (walk_present$x - lattice_size/2) / scr_ppd
-                       walk_present$y <- (walk_present$y - lattice_size/2) / scr_ppd
-                       # add the drift, i.e., the noise
-                       st_trial$x <- st_trial$x + walk_present$x
-                       st_trial$y <- st_trial$y + walk_present$y
-                       rm(walk_present)
-                       
-                       # find the range
-                       trial_x_range <- c(min(st_trial[ , x]), max(st_trial[ , x]))
-                       trial_y_range <- c(min(st_trial[ , y]), max(st_trial[ , y]))
-                       trial_t_range <- c(min(st_trial[ , t]), max(st_trial[ , t]))
-                       # select the conditions
-                       st_present <- st_trial[is_static==FALSE]
-                       st_absent <- st_trial[is_static==TRUE]
-                       
-                       ## perform visual processing
-                       # present
-                       sim_present <- visual_proc_func(do_on_GPU = do_this_on_GPU, 
-                                                       temporal_latency = lat, # temporal delay
-                                                       temporal_scale = sca, temporal_shape = sha, # temporal dynamics
-                                                       contrast_thres = 0, 
-                                                       signal_x = st_present[ , x], 
-                                                       signal_y = st_present[ , y], 
-                                                       signal_t = st_present[ , t],
-                                                       signal_x_range = trial_x_range,
-                                                       signal_y_range = trial_y_range,
-                                                       signal_t_range = trial_t_range,
-                                                       temporal_resolution = scr_fd, 
-                                                       spatial_resolution = spat_res, # in dva
-                                                       gaussian_aperture_sd = stim_sd, # in dva
-                                                       spatial_field_sd = rf_sd, # in dva
-                                                       debug_mode = FALSE, show_result_plot = FALSE, 
-                                                       output_final_matrices = TRUE) 
-                       sim_sac_df_present <- reshape2::melt(sim_present[[2]], # 2: not normalized, 3: normalized
-                                                            varnames = c("y", "x", "t"), value.name = "w_present")
-                       setDT(sim_sac_df_present)
-                       rm(sim_present)
-                       # absent
-                       sim_absent <- visual_proc_func(do_on_GPU = do_this_on_GPU, 
-                                                      temporal_latency = lat, # temporal delay
-                                                      temporal_scale = sca, temporal_shape = sha, # temporal dynamics
-                                                      contrast_thres = 0, 
-                                                      signal_x = st_absent[ , x], 
-                                                      signal_y = st_absent[ , y], 
-                                                      signal_t = st_absent[ , t],
-                                                      signal_x_range = trial_x_range,
-                                                      signal_y_range = trial_y_range,
-                                                      signal_t_range = trial_t_range,
-                                                      temporal_resolution = scr_fd, 
-                                                      spatial_resolution = spat_res, # in dva
-                                                      gaussian_aperture_sd = stim_sd, # in dva
-                                                      spatial_field_sd = rf_sd, # in dva
-                                                      debug_mode = FALSE, show_result_plot = FALSE, 
-                                                      output_final_matrices = TRUE) 
-                       sim_sac_df_absent <- reshape2::melt(sim_absent[[2]], # 2: not normalized, 3: normalized
-                                                           varnames = c("y", "x", "t"), value.name = "w_absent")
-                       setDT(sim_sac_df_absent)
-                       rm(sim_absent)
-                       
-                       # # merge the two activity patterns
-                       # sim_sac_df <- merge.data.table(sim_sac_df_absent, sim_sac_df_present, by = c("y", "x", "t"))
-                       # setDT(sim_sac_df)
-                       
-                       ## instead of merging, which takes considerable time, let us cbind
-                       # instead, check whether data frames are identical (they should be)
-                       assert_that(all(sim_sac_df_absent[ , c("t","x","y")]==sim_sac_df_present[ , c("t","x","y")]))
-                       # instead, cbind
-                       sim_sac_df <- sim_sac_df_present
-                       sim_sac_df[ , w_absent := sim_sac_df_absent[ , c("w_absent")] ]
-                       # clean up
-                       rm(sim_sac_df_present, sim_sac_df_absent)
-                       
-                       # add amplitude-dependent noise
-                       if (add_amp_noise) {
-                         sim_sac_df[ , w_absent := w_absent + rnorm(n = length(w_absent), 
-                                                                    mean = 0, sd = w_absent/8)]
-                         sim_sac_df[ , w_present := w_present + rnorm(n = length(w_present), 
-                                                                      mean = 0, sd = w_present/8)]
-                       }
-                       
-                       # combine activity
-                       sim_sac_df[ , w_full := w_absent + w_present]
-                       # compute the model by Diamond et al (2000)
-                       sim_sac_df[ , O_present := w_present^2 / (w_present^2 + C^2)]
-                       sim_sac_df[ , O_absent := w_absent^2 / (w_absent^2 + C^2)]
-                       sim_sac_df[ , O_full := w_full^2 / (w_full^2 + C^2)]
-                       
-                       # compute the locus of maximum evidence at each time point
-                       max_O <- sim_sac_df[ , c(pop_mean(x = x, y = y, z = w_present, w = O_present, 
-                                                         do_compute_pop_mean = do_compute_pop_mean), 
-                                                pop_mean(x = x, y = y, z = w_absent, w = O_absent, 
-                                                         do_compute_pop_mean = do_compute_pop_mean), 
-                                                pop_mean(x = x, y = y, z = w_full, w = O_full, 
-                                                         do_compute_pop_mean = do_compute_pop_mean)), 
-                                            by = .(t)]
-                       colnames(max_O) <- c("t", 
-                                            "O_present", "x_present", "y_present", "w_present", 
-                                            "x_present_m", "y_present_m", "w_present_m", 
-                                            "O_absent", "x_absent", "y_absent", "w_absent", 
-                                            "x_absent_m", "y_absent_m", "w_absent_m", 
-                                            "O_full", "x_full", "y_full", "w_full", 
-                                            "x_full_m", "y_full_m", "w_full_m")
-                       
-                       # now perform the probability summation (Pelli, 1987)
-                       max_O$prob_sum <- 0
-                       for (t_now in max_O$t) {
-                         max_O$prob_sum[max_O$t==t_now] <- sum(abs(max_O$O_full[max_O$t<=t_now]-
-                                                                     max_O$O_absent[max_O$t<=t_now])^beta)^(1/beta)
-                       }
-                       max_O$iter_i <- iter_i
-                       rm(sim_sac_df)
-                       
-                       # return this readout
-                       return(max_O)
-                     } # end of iterations
-      # stop cluster
-      if (!is.null(snowCluster)) {
-        Sys.sleep(0.01)
-        stopCluster(snowCluster)
-        Sys.sleep(0.01)
-      }
-      
-      # aggregate across iterations!
-      res_agg <- res[ , .(O_present = mean(O_present), O_present_SD = sd(O_present), 
-                          x_present = mean(x_present), x_present_SD = sd(x_present), 
-                          y_present = mean(y_present), y_present_SD = sd(y_present),
-                          w_present = mean(w_present), w_present_SD = sd(w_present),
-                          x_present.m = mean(x_present_m), x_present.m_SD = sd(x_present_m), 
-                          y_present.m = mean(y_present_m), y_present.m_SD = sd(y_present_m),
-                          w_present.m = mean(w_present_m), w_present.m_SD = sd(w_present_m),
-                          O_absent = mean(O_absent), O_absent_SD = sd(O_absent), 
-                          x_absent = mean(x_absent), x_absent_SD = sd(x_absent), 
-                          y_absent = mean(y_absent), y_absent_SD = sd(y_absent), 
-                          w_absent = mean(w_absent), w_absent_SD = sd(w_absent),
-                          x_absent.m = mean(x_absent_m), x_absent.m_SD = sd(x_absent_m), 
-                          y_absent.m = mean(y_absent_m), y_absent.m_SD = sd(y_absent_m),
-                          w_absent.m = mean(w_absent_m), w_absent.m_SD = sd(w_absent_m),
-                          O_full = mean(O_full), O_full_SD = sd(O_full), 
-                          x_full = mean(x_full), x_full_SD = sd(x_full), 
-                          y_full = mean(y_full), y_full_SD = sd(y_full),
-                          w_full = mean(w_full), w_full_SD = sd(w_full),
-                          x_full.m = mean(x_full_m), x_full.m_SD = sd(x_full_m), 
-                          y_full.m = mean(y_full_m), y_full.m_SD = sd(y_full_m),
-                          w_full.m = mean(w_full_m), w_full.m_SD = sd(w_full_m),
-                          prob_sum = mean(prob_sum), prob_sum_SD = sd(prob_sum)
-      ), by = .(t)]
-      res_agg <- cbind(res_agg, this_readout)
-      
-      # plot current results
-      if (do_result_plot) {
-        par(mfrow=c(1,5))
-        # also, add a 5th plot for the maximum weights over time
-        plot(res_agg$t, res_agg$w_full, main = condition_def, type = "l", col = "red", 
-             ylim = c(0, max(res_agg$w_full))) 
-        lines(res_agg$t, res_agg$w_present, col = "blue")
-        lines(res_agg$t, res_agg$w_absent, col = "black")
-        # O over time
-        plot(res_agg$t, res_agg$O_full, type = "l", col = "red", ylim = c(0, 1))
-        lines(res_agg$t, res_agg$O_present, col = "blue")
-        lines(res_agg$t, res_agg$O_absent, col = "black")
-        # compute evidence for signal 
-        plot(res_agg$t, res_agg$prob_sum, type = "l")
-        abline(h = k)
-        # show the real retinal trajectory
-        plot(st[trial_index, t], st[trial_index, x], col = "red", type = "l", 
-             ylim = c(min(st[trial_index, x])-0.2, max(st[trial_index, x])+0.2))
-        lines(st[trial_index, t], st[trial_index, y], col = "red")
-        points(st[trial_index & is_static==TRUE, t], st[trial_index & is_static==TRUE, x], col = "black", pch = '.')
-        points(st[trial_index & is_static==TRUE, t], st[trial_index & is_static==TRUE, y], col = "black", pch = '.')
-        # show the position signal
-        plot(res_agg$t[round(res_agg$t, 1)>res_agg$t[1]+lat], 
-             res_agg$x_full.m[round(res_agg$t, 1)>res_agg$t[1]+lat], col = "red", type = "l", 
-             ylim = c(min(st[trial_index, x])-0.2, max(st[trial_index, x])+0.2))
-        lines(res_agg$t[round(res_agg$t, 1)>res_agg$t[1]+lat], 
-              res_agg$y_full.m[round(res_agg$t, 1)>res_agg$t[1]+lat], col = "red")
-        points(res_agg$t[round(res_agg$t, 1)>res_agg$t[1]+lat], 
-               res_agg$x_absent.m[round(res_agg$t, 1)>res_agg$t[1]+lat], col = "black", pch = '.')
-        points(res_agg$t[round(res_agg$t, 1)>res_agg$t[1]+lat], 
-               res_agg$y_absent.m[round(res_agg$t, 1)>res_agg$t[1]+lat], col = "black", pch = '.')
-        # end of plot
-        par(mfrow=c(1,1))
-      }
-      
-      # save current results
-      all_res[[all_condition_i]] <- res_agg
     }
   }
+  
+  ## convert to data frame
+  all_res <- rbindlist(all_res)
+  all_stim <- rbindlist(all_stim)
+  
+  # save the entire image
+  save.image(file = paste0("visual_proc_on_SLMF_rev_sca", sca, ".rda"), compress = "xz")
+  
+} else { # simply load the results file
+  
+  load(file = file.path("visual_proc_on_SLMF_rev_sca", sca, ".rda"))
+  
 }
-
-## convert to data frame
-all_res <- rbindlist(all_res)
-all_stim <- rbindlist(all_stim)
-# save the entire image
-save.image(file = file.path("visual_proc_on_SLMF_rev_sca", sca, ".rda"), compress = "xz")
-
-
 ```
+
+Okay, done.
+
 
 # Analysis of model output
 
-First, let's apply some aethetics...
+Now let's apply some aesthetics before we get to the results ...
 
 ```{r}
-# merge with st to get the absolute velocity
+# merge with stimulus data frame to get the absolute velocity
 abs_vels <- st[ , .(vel = unique(vel)), by = .(amp, velFac)]
 all_res <- merge.data.table(x = all_res, all.x = TRUE, 
                             y = abs_vels)
 all_res[ , abs_vel := vel * velFac]
 
-# apply aesthetics to ...
+# now apply aesthetics to ...
 # ... results
 all_res$velFac_f <- ordered(round(all_res$velFac, 2))
 all_res$amp_f <- ordered(all_res$amp)
@@ -789,27 +809,31 @@ all_stim$visual_scale_f <- ordered(all_stim$visual_scale)
 levels(all_stim$visual_scale_f) <- paste0("sca=", levels(all_stim$visual_scale_f))
 ```
 
+Now we can look at the difference in output over time for each condition. 
 
-
-```{r}
-## look at results
-# evidence difference 
+```{r, fig.width=16, fig.height=12}
 p_O <- ggplot(data = all_res, aes(x = t, y = O_full-O_absent, color = velFac_f)) + 
-  #geom_hline(yintercept = 0.1, linetype = "dashed", size = 0.75) + 
-  geom_ribbon(aes(x = t, ymax = (O_full-O_absent)+O_full_SD, ymin = (O_full-O_absent)-O_full_SD, fill = velFac_f), 
+  geom_ribbon(aes(x = t, 
+                  ymax = (O_full-O_absent)+O_full_SD, 
+                  ymin = (O_full-O_absent)-O_full_SD, 
+                  fill = velFac_f), 
               alpha = 0.3, color = NA) + 
   geom_line(size = 1.2) + 
   geom_hline(yintercept = 0, linetype = "solid", size = 1) + 
   scale_color_viridis_d(option = "viridis") + 
   scale_fill_viridis_d(option = "viridis") + 
-  facet_grid(mask_time_f~visual_scale_f+amp_f) + 
-  theme_classic(base_size = 12) + SlomTheme() + coord_cartesian(expand = FALSE, ylim = c(0, 0.9)) + 
+  facet_grid(mask_time_f~amp_f) + 
+  theme_classic(base_size = 12) + SlomTheme() + 
+  coord_cartesian(expand = FALSE, ylim = c(0, 0.9)) + 
   labs(x = "Time [ms]", y = TeX('$O_{static+moving}(t)\ -\ O_{static}(t)$'), 
        color = "Velocity [% Peak Vel.]", fill = "Velocity [% Peak Vel.]")
 p_O
+```
 
+And according to the probability summation idea, we can sum this difference to compute evidence.
+
+```{r, fig.width=8, fig.height=12}
 # probability summation results
-k_threshold <- 2.5#1.25
 prob_sum_agg <- all_res[ , .(prob_sum = max(prob_sum), 
                              prob_sum_SD = mean(prob_sum_SD[prob_sum==max(prob_sum)]), 
                              abs_vel = unique(abs_vel)), 
@@ -819,25 +843,29 @@ prob_sum_agg[velFac==1, prob_sum, by = .(mask_time_f, visual_scale_f, amp_f)]
 p_prob_sum <- ggplot(data = prob_sum_agg, aes(x = velFac, y = prob_sum, 
                                               color = amp_f, group = amp_f)) + 
   geom_vline(xintercept = 1, linetype = "dashed") + 
-  geom_hline(yintercept = k_threshold, linetype = "dashed") + 
+  geom_hline(yintercept = 0, linetype = "dashed") + 
   geom_ribbon(data = prob_sum_agg, aes(x = velFac, ymax = prob_sum+prob_sum_SD*2, 
                                        ymin = prob_sum-prob_sum_SD*2, fill = amp_f), 
               alpha = 0.3, color = NA) + 
   geom_line(size = 1.2) + 
-  geom_hline(yintercept = 0, linetype = "solid", size = 1) + 
   scale_color_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
   scale_fill_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
-  facet_grid(mask_time_f~visual_scale_f+fa) + 
+  facet_grid(mask_time_f~fa) + 
   theme_classic(base_size = 12) + SlomTheme() + #coord_cartesian(expand = FALSE) + 
-  #scale_y_sqrt(breaks = round(seq(sqrt(0.5), sqrt(20), length.out = 6)^2,1), expand = c(0,0)) + 
-  scale_y_log10() + 
-  scale_x_log10() +
-  labs(x = "Velocity [% Peak Vel.]", y = TeX("$(\\sum_{t}^{} |O_{static+moving}(t)\ -\ O_{static}(t)|^{\\beta})^{\\frac{1}{\\beta}}$"), 
+  scale_y_sqrt(breaks = round(seq(sqrt(0), sqrt(20), length.out = 5)^2, 1), expand = c(0,0)) + 
+  #scale_x_log10() +
+  labs(x = "Velocity [% Peak Vel.]", 
+       y = TeX("$(\\sum_{t}^{} |O_{static+moving}(t)\ -\ O_{static}(t)|^{\\beta})^{\\frac{1}{\\beta}}$"), 
        color = "Amplitude [dva]", fill = "Amplitude [dva]")
 p_prob_sum
+```
 
-# some evidence readouts
-prob_sum_agg[ , log_prob_sum := log(prob_sum)]
+Now we can think about how to convert this evidence to some behavioral report. I've implemented two options:
+1. The binomial sampler: We'll sample normally around the evidence value in each condition, using a standard deviation that is a third of the mean. We'll get a evidence distribution. Above a certain evidence threshold k, reports are correct (but taking into account a certain lapse rate), whereas below the threshold, reports are guessed, that is, they are 50% correct. 
+
+```{r, fig.width=8, fig.height=12}
+# below this threshold, we'll guess:
+k_threshold <- 2.5
 
 # simulate responses based on the given evidence
 binom_sampler <- function(e_mean, e_sd, k=1, n_trials=200, lapse_rate=0.02, guess_rate=0.5, n_rep=1000) {
@@ -860,24 +888,34 @@ binom_sampler <- function(e_mean, e_sd, k=1, n_trials=200, lapse_rate=0.02, gues
   return(res_list)
 }
 
-## simulate correct responses based on the data - threshold style
+# simulate correct responses based on the data - threshold style
 sim_p_correct <- prob_sum_agg[ , c(binom_sampler(e_mean = prob_sum, e_sd = prob_sum/3, 
-                                                 k = k_threshold, lapse_rate = 0.02)), 
+                                                 k = k_threshold, 
+                                                 guess_rate = guess_rate,
+                                                 lapse_rate = lapse_rate)), 
                                by = .(mask_time_f, visual_scale_f, amp_f, velFac_f, velFac, abs_vel)]
 sim_p_correct$n_correct <- round(sim_p_correct$m)
-sim_p_correct$fa <- "Response"
-# fit psychometric functions
+sim_p_correct$fa <- "Model report (binomial sampler)"
+
+# define contrasts for fitting: we'll use sum coding
+contrasts(sim_p_correct$mask_time_f) <- 'contr.sum'
+contrasts(sim_p_correct$amp_f) <- 'contr.sum'
+# ... and fit psychometric functions
 glm_sim_p_correct <- glm(data = sim_p_correct, 
-                         formula = cbind(n_correct, n_trials-n_correct) ~ velFac * mask_time_f * 
-                           visual_scale_f * 
-                           amp_f, 
-                         family = binomial(link = logit.2asym(g = 0.5, lam = 0.02)) )
+                         formula = cbind(n_correct, n_trials-n_correct) ~ velFac * mask_time_f * amp_f, 
+                         family = binomial(link = logit.2asym(g = guess_rate, lam = lapse_rate)) )
+summary(glm_sim_p_correct)
+
+# let those functions predict
 sim_p_correct_expand <- expand.grid(list(mask_time_f = unique(sim_p_correct$mask_time_f), 
                                          visual_scale_f = unique(sim_p_correct$visual_scale_f),
                                          amp_f = unique(sim_p_correct$amp_f), 
-                                         velFac = seq(min(sim_p_correct$velFac), max(sim_p_correct$velFac), 0.01) ))
-sim_p_correct_expand$glm_predict <- predict(glm_sim_p_correct, type = "response", newdata = sim_p_correct_expand)
-sim_p_correct_expand$fa <- "Response"
+                                         velFac = seq(min(sim_p_correct$velFac), 
+                                                      max(sim_p_correct$velFac),#+0.25, 
+                                                      by = 0.01) ))
+sim_p_correct_expand$glm_predict <- predict(object = glm_sim_p_correct, type = "response", 
+                                            newdata = sim_p_correct_expand)
+sim_p_correct_expand$fa <- unique(sim_p_correct$fa)
 
 # plot the results of the simulation
 p_sim_p_correct <- ggplot(data = sim_p_correct, aes(x = velFac, y = m / n_trials, 
@@ -894,38 +932,21 @@ p_sim_p_correct <- ggplot(data = sim_p_correct, aes(x = velFac, y = m / n_trials
   geom_hline(yintercept = 0, linetype = "solid", size = 1) + 
   scale_color_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
   scale_fill_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
-  facet_grid(mask_time_f~visual_scale_f+fa) + 
+  facet_grid(mask_time_f~fa) + 
   theme_classic(base_size = 12) + SlomTheme() + 
+  scale_x_continuous(breaks = c(0.25, 0.5, 0.75, 1, 1.25, 1.5)) + 
   scale_y_continuous(limits = c(0.4, 1), expand = c(0, 0), breaks = c(0.5, 0.75, 1)) + 
   labs(x = "Velocity [% Peak Vel.]", y = "Simulated proportion correct", 
        color = "Amplitude [dva]", fill = "Amplitude [dva]")
 p_sim_p_correct
+```
 
-# plot the results of the simulation
-p_sim_p_correct_abs <- ggplot(data = sim_p_correct, aes(x = abs_vel, y = m / n_trials, 
-                                                    color = amp_f, group = amp_f)) + 
-  geom_hline(yintercept = 0.5, linetype = "dashed") + 
-  geom_vline(xintercept = 1, linetype = "dashed") + 
-  # geom_errorbar(data = sim_p_correct, aes(x = velFac, ymax = m_upper / n_trials, 
-  #                                         ymin = m_lower / n_trials, color = amp_f), 
-  #               size = 1, width = 0, alpha = 0.8) + 
-  # geom_line(data = sim_p_correct_expand, aes(x = velFac, y = glm_predict, 
-  #                                            color = amp_f, group = amp_f), 
-  #           size = 1.2, alpha = 0.8) + 
-  geom_point(size = 1.5, alpha = 0.8) + 
-  geom_line(size = 1.2, alpha = 0.8) + 
-  geom_hline(yintercept = 0, linetype = "solid", size = 1) + 
-  scale_color_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
-  scale_fill_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
-  facet_grid(mask_time_f~visual_scale_f+fa) + 
-  theme_classic(base_size = 12) + SlomTheme() + 
-  scale_y_continuous(limits = c(0.4, 1), expand = c(0, 0), breaks = c(0.5, 0.75, 1)) + 
-  labs(x = "Velocity [% Peak Vel.]", y = "Simulated proportion correct", 
-       color = "Amplitude [dva]", fill = "Amplitude [dva]")
-p_sim_p_correct_abs
+Now the alternative:
+2. The simple Gaussian sampler. Again, we'll sample around the mean evidence in each condition and we'll assume one free parameter, that is, the SD of the evidence distribution. If the resulting evidence value is above 0, then it's correct.
 
-
-
+```{r, fig.width=8, fig.height=12}
+# this is the SD of the assumed evidence distribution
+e_SD <- 4
 
 # simulate responses based on the given evidence, no use of threshold
 binom_sampler_nothres <- function(e_mean, e_sd, k=0, n_trials=200, n_rep=1000, lapse_rate = 0.02) {
@@ -947,27 +968,29 @@ binom_sampler_nothres <- function(e_mean, e_sd, k=0, n_trials=200, n_rep=1000, l
 }
 
 ## different readout: Martin does not like no evidence threshold
-setDT(prob_sum_agg)
-prob_sum_agg[ , min_evi := min(prob_sum), by = .(visual_scale_f)]
-sim_p_correct_nothres <- prob_sum_agg[ , c(binom_sampler_nothres(e_mean = prob_sum, e_sd = 4, k = 0)), # previously 5
+sim_p_correct_nothres <- prob_sum_agg[ , c(binom_sampler_nothres(e_mean = prob_sum, e_sd = e_SD)), 
                                        by = .(mask_time_f, visual_scale_f, amp_f, velFac_f, velFac)]
 sim_p_correct_nothres$n_correct <- round(sim_p_correct_nothres$m)
-sim_p_correct_nothres$fa <- "Response"
+sim_p_correct_nothres$fa <- "Model report (Gaussian sampler)"
 sim_p_correct_nothres$prop_correct <- sim_p_correct_nothres$m / sim_p_correct_nothres$n_trials
-# fit psychometric functions to no-threshold data
+
+# define contrasts for fitting: we'll use sum coding
+contrasts(sim_p_correct_nothres$mask_time_f) <- 'contr.sum'
+contrasts(sim_p_correct_nothres$amp_f) <- 'contr.sum'
+# ... and fit psychometric functions to no-threshold data
 glm_sim_p_correct_nothres <- glm(data = sim_p_correct_nothres, 
-                                 formula = cbind(n_correct, n_trials-n_correct) ~ velFac * mask_time_f * 
-                                   visual_scale_f * 
-                                   amp_f, 
-                                 family = binomial(link = logit.2asym(g = 0.5, lam = 0.02)) )
+                                 formula = cbind(n_correct, n_trials-n_correct) ~ velFac * mask_time_f * amp_f, 
+                                 family = binomial(link = logit.2asym(g = guess_rate, lam = lapse_rate)) )
+summary(glm_sim_p_correct_nothres)
 sim_p_correct_nothres_expand <- expand.grid(list(mask_time_f = unique(sim_p_correct_nothres$mask_time_f), 
                                                  visual_scale_f = unique(sim_p_correct_nothres$visual_scale_f),
                                                  amp_f = unique(sim_p_correct_nothres$amp_f), 
                                                  velFac = seq(min(sim_p_correct_nothres$velFac), 
-                                                              max(sim_p_correct_nothres$velFac), 0.01) ))
+                                                              max(sim_p_correct_nothres$velFac),#+0.25, 
+                                                              0.01) ))
 sim_p_correct_nothres_expand$glm_predict <- predict(glm_sim_p_correct_nothres, type = "response", 
                                                     newdata = sim_p_correct_nothres_expand)
-sim_p_correct_nothres_expand$fa <- "Response"
+sim_p_correct_nothres_expand$fa <- unique(sim_p_correct_nothres$fa)
 
 # plot this
 p_sim_p_correct_nothres <- ggplot(data = sim_p_correct_nothres, 
@@ -986,27 +1009,39 @@ p_sim_p_correct_nothres <- ggplot(data = sim_p_correct_nothres,
   geom_hline(yintercept = 0, linetype = "solid", size = 1) + 
   scale_color_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
   scale_fill_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
-  facet_grid(mask_time_f~visual_scale_f+fa) + 
+  facet_grid(mask_time_f~fa) + 
   theme_classic(base_size = 12) + SlomTheme() + 
+  scale_x_continuous(breaks = c(0.25, 0.5, 0.75, 1, 1.25, 1.5)) + 
   scale_y_continuous(limits = c(0.4, 1.0), expand = c(0, 0), breaks = c(0.5, 0.75, 1)) + 
   labs(x = "Velocity [% Peak Vel.]", y = "Simulated proportion correct", 
        color = "Amplitude [dva]", fill = "Amplitude [dva]")
 p_sim_p_correct_nothres
+```
 
+Now combine these into one plot:
 
+```{r, fig.width=16, fig.height=10}
+p_model_res <- plot_grid(p_O + theme(legend.position = "bottom"), 
+                         p_prob_sum + theme(legend.position = "bottom"), 
+                         #p_sim_p_correct + theme(legend.position = "bottom"), 
+                         p_sim_p_correct_nothres + theme(legend.position = "bottom"), 
+                         nrow = 1, align = "hv", axis = "tblr", rel_widths = c(2.5, 1, 1, 1))
+p_model_res
+ggsave(filename = file.path(slmf_fig_path, "p_model_res.svg"), plot = p_model_res,
+       width = 14, height = 7, units = "in")
+```
 
+Finally, by reading out the population location response, we can have a look at the phenomenal appearance of the stimulus. Interestingly, as velocity increases, the motion does not appear continuous anymore, but seems more like a step function. Moreover, on the vertical dimension, the curvature becomes indiscriminable, which is also predicted by the model.
 
-
-# the position signals
+```{r, fig.width=16, fig.height=10}
 # ... x
 p_position_signal_x <- ggplot(data = all_res[t>t_start+lat+10], aes(x = t+150, y = x_full, color = velFac_f)) + 
-  #geom_point(data = all_stim, aes(x = t-150, y = x, color = velFac_f), alpha = 1, size = 0.25) + # the stimulus
-  geom_ribbon(aes(x = t+150, ymax = x_full+x_full_SD, ymin = x_full-x_full_SD, fill = velFac_f), alpha = 0.3, color = NA) + # perceived SD
+  geom_ribbon(aes(x = t+150, ymax = x_full+x_full_SD, ymin = x_full-x_full_SD, fill = velFac_f), 
+              alpha = 0.3, color = NA) + # perceived SD
   geom_line(size = 1.2) + # perceived
-  #geom_line(data = all_res[t>t_start+lat+10], aes(x = t, y = y_full, color = velFac_f), linetype = "dashed") + 
   scale_color_viridis_d(option = "viridis") + 
   scale_fill_viridis_d(option = "viridis") + 
-  facet_grid(mask_time_f~visual_scale_f+amp_f) + 
+  facet_grid(mask_time_f~amp_f) + 
   theme_classic(base_size = 12) + SlomTheme() + coord_cartesian(expand = FALSE) + 
   labs(x = "Time [ms]", y = "X position signal [dva]", 
        color = "Velocity [% Peak Vel.]", fill = "Velocity [% Peak Vel.]")
@@ -1014,18 +1049,22 @@ p_position_signal_x
 # ... y
 p_position_signal_y <- ggplot(data = all_res[t>t_start+lat+10], aes(x = t+150, y = y_full, color = velFac_f)) + 
   geom_hline(yintercept = 0, linetype = "dotted") + 
-  #geom_point(data = all_stim, aes(x = t-150, y = y, color = velFac_f), alpha = 1, size = 0.25) + # the stimulus
-  geom_ribbon(aes(x = t+150, ymax = y_full+y_full_SD, ymin = y_full-y_full_SD, fill = velFac_f), alpha = 0.3, color = NA) + # perceived SD
+  geom_ribbon(aes(x = t+150, ymax = y_full+y_full_SD, ymin = y_full-y_full_SD, fill = velFac_f), 
+              alpha = 0.3, color = NA) + # perceived SD
   geom_line(size = 1.2) + # perceived
-  #geom_line(data = all_res[t>t_start+lat+10], aes(x = t, y = y_full, color = velFac_f), linetype = "dashed") + 
   scale_color_viridis_d(option = "viridis") + 
   scale_fill_viridis_d(option = "viridis") + 
-  facet_grid(mask_time_f+visual_scale_f~amp_f) + 
+  facet_grid(mask_time_f~amp_f) + 
   theme_classic(base_size = 12) + SlomTheme() + coord_cartesian(expand = FALSE) + 
   labs(x = "Time [ms]", y = "Y position signal [dva]", 
        color = "Velocity [% Peak Vel.]", fill = "Velocity [% Peak Vel.]")
 p_position_signal_y
-
-
-
+# combine these plots
+p_position_signal <- plot_grid(p_position_signal_x + theme(legend.position = "bottom"), 
+                               p_position_signal_y + theme(legend.position = "bottom"), 
+                               nrow = 1, align = "hv", axis = "tblr", rel_widths = c(1, 1))
+p_position_signal
+ggsave(filename = file.path(slmf_fig_path, "p_position_signal.svg"), plot = p_position_signal,
+       width = 14, height = 7, units = "in")
 ```
+
