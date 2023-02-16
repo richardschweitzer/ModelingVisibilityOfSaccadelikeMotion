@@ -63,10 +63,10 @@ library(reshape2)
 ``` r
 library(assertthat)
 library(torch)
-assertthat::assert_that(cuda_is_available()) # check: is cuda available?
+cuda_is_available() # check: is cuda available?
 ```
 
-    ## [1] TRUE
+    ## [1] FALSE
 
 ``` r
 # relevant custom functions
@@ -796,8 +796,8 @@ gc()
 ```
 
     ##            used  (Mb) gc trigger   (Mb)  max used   (Mb)
-    ## Ncells  2690332 143.7    4466328  238.6   4466328  238.6
-    ## Vcells 15656574 119.5  540533045 4124.0 675666273 5155.0
+    ## Ncells  2748092 146.8    4590011  245.2   4590011  245.2
+    ## Vcells 15814705 120.7  533789001 4072.5 667236251 5090.7
 
 # Running the model
 
@@ -807,7 +807,7 @@ adding noise add each step.
 
 ``` r
 # shall we compute it again or should we simply load the results?
-do_run_model <- TRUE
+do_run_model <- FALSE
 
 # run the simulation?
 if (do_run_model) {
@@ -1077,104 +1077,10 @@ if (do_run_model) {
   
 } else { # simply load the results file
   
-  load(file = file.path("visual_proc_on_SLMF_rev_sca", sca, ".rda"))
+  load(file = paste0("visual_proc_on_SLMF_rev_sca", sca, ".rda"))
   
 }
 ```
-
-    ## [1] "1, 12.5 1.6 0 4 0.25 1 1"
-
-    ## Loading required package: doSNOW
-
-    ## Loading required package: foreach
-
-    ## Loading required package: iterators
-
-    ## Loading required package: snow
-
-    ## [1] "2, 12.5 1.6 0 4 0.33 1 1"
-    ## [1] "3, 12.5 1.6 0 4 0.5 1 1"
-    ## [1] "4, 12.5 1.6 0 4 0.67 1 1"
-    ## [1] "5, 12.5 1.6 0 4 0.8 1 1"
-    ## [1] "6, 12.5 1.6 0 4 1 1 1"
-    ## [1] "7, 12.5 1.6 0 4 1.25 1 1"
-    ## [1] "8, 12.5 1.6 0 8 0.25 1 1"
-    ## [1] "9, 12.5 1.6 0 8 0.33 1 1"
-    ## [1] "10, 12.5 1.6 0 8 0.5 1 1"
-    ## [1] "11, 12.5 1.6 0 8 0.67 1 1"
-    ## [1] "12, 12.5 1.6 0 8 0.8 1 1"
-    ## [1] "13, 12.5 1.6 0 8 1 1 1"
-    ## [1] "14, 12.5 1.6 0 8 1.25 1 1"
-    ## [1] "15, 12.5 1.6 0 12 0.25 1 1"
-    ## [1] "16, 12.5 1.6 0 12 0.33 1 1"
-    ## [1] "17, 12.5 1.6 0 12 0.5 1 1"
-    ## [1] "18, 12.5 1.6 0 12 0.67 1 1"
-    ## [1] "19, 12.5 1.6 0 12 0.8 1 1"
-    ## [1] "20, 12.5 1.6 0 12 1 1 1"
-    ## [1] "21, 12.5 1.6 0 12 1.25 1 1"
-    ## [1] "22, 12.5 1.6 12.5 4 0.25 1 1"
-    ## [1] "23, 12.5 1.6 12.5 4 0.33 1 1"
-    ## [1] "24, 12.5 1.6 12.5 4 0.5 1 1"
-    ## [1] "25, 12.5 1.6 12.5 4 0.67 1 1"
-    ## [1] "26, 12.5 1.6 12.5 4 0.8 1 1"
-    ## [1] "27, 12.5 1.6 12.5 4 1 1 1"
-    ## [1] "28, 12.5 1.6 12.5 4 1.25 1 1"
-    ## [1] "29, 12.5 1.6 12.5 8 0.25 1 1"
-    ## [1] "30, 12.5 1.6 12.5 8 0.33 1 1"
-    ## [1] "31, 12.5 1.6 12.5 8 0.5 1 1"
-    ## [1] "32, 12.5 1.6 12.5 8 0.67 1 1"
-    ## [1] "33, 12.5 1.6 12.5 8 0.8 1 1"
-    ## [1] "34, 12.5 1.6 12.5 8 1 1 1"
-    ## [1] "35, 12.5 1.6 12.5 8 1.25 1 1"
-    ## [1] "36, 12.5 1.6 12.5 12 0.25 1 1"
-    ## [1] "37, 12.5 1.6 12.5 12 0.33 1 1"
-    ## [1] "38, 12.5 1.6 12.5 12 0.5 1 1"
-    ## [1] "39, 12.5 1.6 12.5 12 0.67 1 1"
-    ## [1] "40, 12.5 1.6 12.5 12 0.8 1 1"
-    ## [1] "41, 12.5 1.6 12.5 12 1 1 1"
-    ## [1] "42, 12.5 1.6 12.5 12 1.25 1 1"
-    ## [1] "43, 12.5 1.6 50 4 0.25 1 1"
-    ## [1] "44, 12.5 1.6 50 4 0.33 1 1"
-    ## [1] "45, 12.5 1.6 50 4 0.5 1 1"
-    ## [1] "46, 12.5 1.6 50 4 0.67 1 1"
-    ## [1] "47, 12.5 1.6 50 4 0.8 1 1"
-    ## [1] "48, 12.5 1.6 50 4 1 1 1"
-    ## [1] "49, 12.5 1.6 50 4 1.25 1 1"
-    ## [1] "50, 12.5 1.6 50 8 0.25 1 1"
-    ## [1] "51, 12.5 1.6 50 8 0.33 1 1"
-    ## [1] "52, 12.5 1.6 50 8 0.5 1 1"
-    ## [1] "53, 12.5 1.6 50 8 0.67 1 1"
-    ## [1] "54, 12.5 1.6 50 8 0.8 1 1"
-    ## [1] "55, 12.5 1.6 50 8 1 1 1"
-    ## [1] "56, 12.5 1.6 50 8 1.25 1 1"
-    ## [1] "57, 12.5 1.6 50 12 0.25 1 1"
-    ## [1] "58, 12.5 1.6 50 12 0.33 1 1"
-    ## [1] "59, 12.5 1.6 50 12 0.5 1 1"
-    ## [1] "60, 12.5 1.6 50 12 0.67 1 1"
-    ## [1] "61, 12.5 1.6 50 12 0.8 1 1"
-    ## [1] "62, 12.5 1.6 50 12 1 1 1"
-    ## [1] "63, 12.5 1.6 50 12 1.25 1 1"
-    ## [1] "64, 12.5 1.6 200 4 0.25 1 1"
-    ## [1] "65, 12.5 1.6 200 4 0.33 1 1"
-    ## [1] "66, 12.5 1.6 200 4 0.5 1 1"
-    ## [1] "67, 12.5 1.6 200 4 0.67 1 1"
-    ## [1] "68, 12.5 1.6 200 4 0.8 1 1"
-    ## [1] "69, 12.5 1.6 200 4 1 1 1"
-    ## [1] "70, 12.5 1.6 200 4 1.25 1 1"
-    ## [1] "71, 12.5 1.6 200 8 0.25 1 1"
-    ## [1] "72, 12.5 1.6 200 8 0.33 1 1"
-    ## [1] "73, 12.5 1.6 200 8 0.5 1 1"
-    ## [1] "74, 12.5 1.6 200 8 0.67 1 1"
-    ## [1] "75, 12.5 1.6 200 8 0.8 1 1"
-    ## [1] "76, 12.5 1.6 200 8 1 1 1"
-    ## [1] "77, 12.5 1.6 200 8 1.25 1 1"
-    ## [1] "78, 12.5 1.6 200 12 0.25 1 1"
-    ## [1] "79, 12.5 1.6 200 12 0.33 1 1"
-    ## [1] "80, 12.5 1.6 200 12 0.5 1 1"
-    ## [1] "81, 12.5 1.6 200 12 0.67 1 1"
-    ## [1] "82, 12.5 1.6 200 12 0.8 1 1"
-    ## [1] "83, 12.5 1.6 200 12 1 1 1"
-    ## [1] "84, 12.5 1.6 200 12 1.25 1 1"
 
 Okay, done.
 
@@ -1460,6 +1366,7 @@ sim_p_correct_nothres$prop_correct <- sim_p_correct_nothres$m / sim_p_correct_no
 contrasts(sim_p_correct_nothres$mask_time_f) <- 'contr.sum'
 contrasts(sim_p_correct_nothres$amp_f) <- 'contr.sum'
 # ... and fit psychometric functions to no-threshold data
+# 1. the logistic fit
 glm_sim_p_correct_nothres <- glm(data = sim_p_correct_nothres, 
                                  formula = cbind(n_correct, n_trials-n_correct) ~ velFac * mask_time_f * amp_f, 
                                  family = binomial(link = logit.2asym(g = guess_rate, lam = lapse_rate)) )
@@ -1514,6 +1421,64 @@ summary(glm_sim_p_correct_nothres)
     ## Number of Fisher Scoring iterations: 9
 
 ``` r
+# 2. Martin Rolfs: Richard, can we use Gumbel functions here (fitted to the -log10(relativeSpeed), as I do for the data?
+# Well, the psyphy package does not have Gumbel functions :( but it has Weibull. 
+# according to https://palamedestoolbox.org/weibullandfriends.html - no worries
+glm_sim_p_correct_nothres_2 <- glm(data = sim_p_correct_nothres, 
+                                 formula = cbind(n_correct, n_trials-n_correct) ~ velFac * mask_time_f * amp_f, 
+                                 family = binomial(link = weib.2asym(g = guess_rate, lam = lapse_rate)) )
+summary(glm_sim_p_correct_nothres_2)
+```
+
+    ## 
+    ## Call:
+    ## glm(formula = cbind(n_correct, n_trials - n_correct) ~ velFac * 
+    ##     mask_time_f * amp_f, family = binomial(link = weib.2asym(g = guess_rate, 
+    ##     lam = lapse_rate)), data = sim_p_correct_nothres)
+    ## 
+    ## Deviance Residuals: 
+    ##      Min        1Q    Median        3Q       Max  
+    ## -0.52891  -0.03324   0.06262   0.35050   1.07104  
+    ## 
+    ## Coefficients:
+    ##                            Estimate Std. Error z value Pr(>|z|)    
+    ## (Intercept)                 3.45961    0.14822  23.341  < 2e-16 ***
+    ## velFac                     -5.66800    0.25267 -22.433  < 2e-16 ***
+    ## mask_time_f1               -0.70004    0.20323  -3.445 0.000572 ***
+    ## mask_time_f2               -0.04130    0.24514  -0.168 0.866213    
+    ## mask_time_f3                0.39309    0.28737   1.368 0.171342    
+    ## amp_f1                     -0.30423    0.19410  -1.567 0.117015    
+    ## amp_f2                      0.06563    0.21257   0.309 0.757528    
+    ## velFac:mask_time_f1         2.46116    0.30747   8.004  1.2e-15 ***
+    ## velFac:mask_time_f2         0.08856    0.40733   0.217 0.827879    
+    ## velFac:mask_time_f3        -1.37450    0.51013  -2.694 0.007052 ** 
+    ## velFac:amp_f1               0.73113    0.32672   2.238 0.025236 *  
+    ## velFac:amp_f2              -0.24512    0.36559  -0.670 0.502562    
+    ## mask_time_f1:amp_f1         0.12561    0.27365   0.459 0.646232    
+    ## mask_time_f2:amp_f1        -0.05680    0.31875  -0.178 0.858579    
+    ## mask_time_f3:amp_f1        -0.03355    0.37429  -0.090 0.928579    
+    ## mask_time_f1:amp_f2        -0.02309    0.28918  -0.080 0.936361    
+    ## mask_time_f2:amp_f2         0.05330    0.35425   0.150 0.880402    
+    ## mask_time_f3:amp_f2        -0.02457    0.41095  -0.060 0.952321    
+    ## velFac:mask_time_f1:amp_f1  0.01408    0.39928   0.035 0.971867    
+    ## velFac:mask_time_f2:amp_f1  0.13104    0.52058   0.252 0.801253    
+    ## velFac:mask_time_f3:amp_f1 -0.09797    0.66229  -0.148 0.882396    
+    ## velFac:mask_time_f1:amp_f2  0.07527    0.44239   0.170 0.864891    
+    ## velFac:mask_time_f2:amp_f2 -0.09596    0.59356  -0.162 0.871565    
+    ## velFac:mask_time_f3:amp_f2  0.03082    0.73561   0.042 0.966580    
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## (Dispersion parameter for binomial family taken to be 1)
+    ## 
+    ##     Null deviance: 3549.538  on 83  degrees of freedom
+    ## Residual deviance:   11.172  on 60  degrees of freedom
+    ## AIC: 460.83
+    ## 
+    ## Number of Fisher Scoring iterations: 12
+
+``` r
+# let the model predict here:
 sim_p_correct_nothres_expand <- expand.grid(list(mask_time_f = unique(sim_p_correct_nothres$mask_time_f), 
                                                  visual_scale_f = unique(sim_p_correct_nothres$visual_scale_f),
                                                  amp_f = unique(sim_p_correct_nothres$amp_f), 
@@ -1522,6 +1487,8 @@ sim_p_correct_nothres_expand <- expand.grid(list(mask_time_f = unique(sim_p_corr
                                                               0.01) ))
 sim_p_correct_nothres_expand$glm_predict <- predict(glm_sim_p_correct_nothres, type = "response", 
                                                     newdata = sim_p_correct_nothres_expand)
+sim_p_correct_nothres_expand$glm_predict_2 <- predict(glm_sim_p_correct_nothres_2, type = "response", 
+                                                      newdata = sim_p_correct_nothres_expand)
 sim_p_correct_nothres_expand$fa <- unique(sim_p_correct_nothres$fa)
 
 # plot this
@@ -1533,8 +1500,8 @@ p_sim_p_correct_nothres <- ggplot(data = sim_p_correct_nothres,
   geom_errorbar(data = sim_p_correct_nothres, aes(x = velFac, ymax = m_upper / n_trials, 
                                                   ymin = m_lower / n_trials, color = amp_f), 
                 size = 1, width = 0, alpha = 0.8) + 
-  geom_line(data = sim_p_correct_nothres_expand, aes(x = velFac, y = glm_predict,
-                                             color = amp_f, group = amp_f),
+  geom_line(data = sim_p_correct_nothres_expand, aes(x = velFac, y = glm_predict_2,
+                                                     color = amp_f, group = amp_f),
             size = 1.2, alpha = 0.8) +
   geom_point(size = 1.5, alpha = 0.8) + 
   #geom_line(size = 1.2, alpha = 0.8) + 
@@ -1586,8 +1553,8 @@ model.
 
 ``` r
 # ... x
-p_position_signal_x <- ggplot(data = all_res[t>t_start+lat+10], aes(x = t+150, y = x_full, color = velFac_f)) + 
-  geom_ribbon(aes(x = t+150, ymax = x_full+x_full_SD, ymin = x_full-x_full_SD, fill = velFac_f), 
+p_position_signal_x <- ggplot(data = all_res[t>t_start+lat+1], aes(x = t, y = x_full, color = velFac_f)) + 
+  geom_ribbon(aes(x = t, ymax = x_full+x_full_SD, ymin = x_full-x_full_SD, fill = velFac_f), 
               alpha = 0.3, color = NA) + # perceived SD
   geom_line(size = 1.2) + # perceived
   scale_color_viridis_d(option = "viridis") + 
@@ -1603,9 +1570,9 @@ p_position_signal_x
 
 ``` r
 # ... y
-p_position_signal_y <- ggplot(data = all_res[t>t_start+lat+10], aes(x = t+150, y = y_full, color = velFac_f)) + 
+p_position_signal_y <- ggplot(data = all_res[t>t_start+lat+1], aes(x = t, y = y_full, color = velFac_f)) + 
   geom_hline(yintercept = 0, linetype = "dotted") + 
-  geom_ribbon(aes(x = t+150, ymax = y_full+y_full_SD, ymin = y_full-y_full_SD, fill = velFac_f), 
+  geom_ribbon(aes(x = t, ymax = y_full+y_full_SD, ymin = y_full-y_full_SD, fill = velFac_f), 
               alpha = 0.3, color = NA) + # perceived SD
   geom_line(size = 1.2) + # perceived
   scale_color_viridis_d(option = "viridis") + 
@@ -1632,4 +1599,34 @@ p_position_signal
 ``` r
 ggsave(filename = file.path(slmf_fig_path, "p_position_signal.svg"), plot = p_position_signal,
        width = 14, height = 7, units = "in")
+```
+
+Finally, also add the evidence panel.
+
+``` r
+# combine
+common_limits_x <- c(150, 500)
+p_position_signal_ext <- plot_grid(p_position_signal_x + theme(legend.position = "bottom") + 
+                                     xlim(common_limits_x[1], common_limits_x[2]), 
+                                   p_position_signal_y + theme(legend.position = "bottom") + 
+                                     xlim(common_limits_x[1], common_limits_x[2]), 
+                                   p_O + theme(legend.position = "bottom") + 
+                                     xlim(common_limits_x[1], common_limits_x[2]), 
+                                   nrow = 1, align = "hv", axis = "tblr", rel_widths = c(1, 1, 1))
+```
+
+    ## Warning: Removed 2460 row(s) containing missing values (geom_path).
+    ## Removed 2460 row(s) containing missing values (geom_path).
+
+    ## Warning: Removed 2880 row(s) containing missing values (geom_path).
+
+``` r
+p_position_signal_ext
+```
+
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+
+``` r
+ggsave(filename = file.path(slmf_fig_path, "p_position_signal_ext.svg"), plot = p_position_signal_ext,
+       width = 21, height = 7, units = "in")
 ```

@@ -23,7 +23,7 @@ library(latex2exp)
 library(reshape2)
 library(assertthat)
 library(torch)
-assertthat::assert_that(cuda_is_available()) # check: is cuda available?
+cuda_is_available() # check: is cuda available?
 
 # relevant custom functions
 source("self_avoiding_walk.R")
@@ -501,7 +501,7 @@ We'll run through all conditions and perform a number of iterations for each sin
 
 ```{r, fig.width=16, fig.height=8}
 # shall we compute it again or should we simply load the results?
-do_run_model <- TRUE
+do_run_model <- FALSE
 
 # run the simulation?
 if (do_run_model) {
@@ -771,7 +771,7 @@ if (do_run_model) {
   
 } else { # simply load the results file
   
-  load(file = file.path("visual_proc_on_SLMF_rev_sca", sca, ".rda"))
+  load(file = paste0("visual_proc_on_SLMF_rev_sca", sca, ".rda"))
   
 }
 ```
@@ -978,10 +978,19 @@ sim_p_correct_nothres$prop_correct <- sim_p_correct_nothres$m / sim_p_correct_no
 contrasts(sim_p_correct_nothres$mask_time_f) <- 'contr.sum'
 contrasts(sim_p_correct_nothres$amp_f) <- 'contr.sum'
 # ... and fit psychometric functions to no-threshold data
+# 1. the logistic fit
 glm_sim_p_correct_nothres <- glm(data = sim_p_correct_nothres, 
                                  formula = cbind(n_correct, n_trials-n_correct) ~ velFac * mask_time_f * amp_f, 
                                  family = binomial(link = logit.2asym(g = guess_rate, lam = lapse_rate)) )
 summary(glm_sim_p_correct_nothres)
+# 2. Martin Rolfs: Richard, can we use Gumbel functions here (fitted to the -log10(relativeSpeed), as I do for the data?
+# Well, the psyphy package does not have Gumbel functions :( but it has Weibull. 
+# according to https://palamedestoolbox.org/weibullandfriends.html - no worries
+glm_sim_p_correct_nothres_2 <- glm(data = sim_p_correct_nothres, 
+                                 formula = cbind(n_correct, n_trials-n_correct) ~ velFac * mask_time_f * amp_f, 
+                                 family = binomial(link = weib.2asym(g = guess_rate, lam = lapse_rate)) )
+summary(glm_sim_p_correct_nothres_2)
+# let the model predict here:
 sim_p_correct_nothres_expand <- expand.grid(list(mask_time_f = unique(sim_p_correct_nothres$mask_time_f), 
                                                  visual_scale_f = unique(sim_p_correct_nothres$visual_scale_f),
                                                  amp_f = unique(sim_p_correct_nothres$amp_f), 
@@ -990,6 +999,8 @@ sim_p_correct_nothres_expand <- expand.grid(list(mask_time_f = unique(sim_p_corr
                                                               0.01) ))
 sim_p_correct_nothres_expand$glm_predict <- predict(glm_sim_p_correct_nothres, type = "response", 
                                                     newdata = sim_p_correct_nothres_expand)
+sim_p_correct_nothres_expand$glm_predict_2 <- predict(glm_sim_p_correct_nothres_2, type = "response", 
+                                                      newdata = sim_p_correct_nothres_expand)
 sim_p_correct_nothres_expand$fa <- unique(sim_p_correct_nothres$fa)
 
 # plot this
@@ -1001,8 +1012,8 @@ p_sim_p_correct_nothres <- ggplot(data = sim_p_correct_nothres,
   geom_errorbar(data = sim_p_correct_nothres, aes(x = velFac, ymax = m_upper / n_trials, 
                                                   ymin = m_lower / n_trials, color = amp_f), 
                 size = 1, width = 0, alpha = 0.8) + 
-  geom_line(data = sim_p_correct_nothres_expand, aes(x = velFac, y = glm_predict,
-                                             color = amp_f, group = amp_f),
+  geom_line(data = sim_p_correct_nothres_expand, aes(x = velFac, y = glm_predict_2,
+                                                     color = amp_f, group = amp_f),
             size = 1.2, alpha = 0.8) +
   geom_point(size = 1.5, alpha = 0.8) + 
   #geom_line(size = 1.2, alpha = 0.8) + 
@@ -1035,8 +1046,8 @@ Finally, by reading out the population location response, we can have a look at 
 
 ```{r, fig.width=16, fig.height=10}
 # ... x
-p_position_signal_x <- ggplot(data = all_res[t>t_start+lat+10], aes(x = t+150, y = x_full, color = velFac_f)) + 
-  geom_ribbon(aes(x = t+150, ymax = x_full+x_full_SD, ymin = x_full-x_full_SD, fill = velFac_f), 
+p_position_signal_x <- ggplot(data = all_res[t>t_start+lat+1], aes(x = t, y = x_full, color = velFac_f)) + 
+  geom_ribbon(aes(x = t, ymax = x_full+x_full_SD, ymin = x_full-x_full_SD, fill = velFac_f), 
               alpha = 0.3, color = NA) + # perceived SD
   geom_line(size = 1.2) + # perceived
   scale_color_viridis_d(option = "viridis") + 
@@ -1047,9 +1058,9 @@ p_position_signal_x <- ggplot(data = all_res[t>t_start+lat+10], aes(x = t+150, y
        color = "Velocity [% Peak Vel.]", fill = "Velocity [% Peak Vel.]")
 p_position_signal_x
 # ... y
-p_position_signal_y <- ggplot(data = all_res[t>t_start+lat+10], aes(x = t+150, y = y_full, color = velFac_f)) + 
+p_position_signal_y <- ggplot(data = all_res[t>t_start+lat+1], aes(x = t, y = y_full, color = velFac_f)) + 
   geom_hline(yintercept = 0, linetype = "dotted") + 
-  geom_ribbon(aes(x = t+150, ymax = y_full+y_full_SD, ymin = y_full-y_full_SD, fill = velFac_f), 
+  geom_ribbon(aes(x = t, ymax = y_full+y_full_SD, ymin = y_full-y_full_SD, fill = velFac_f), 
               alpha = 0.3, color = NA) + # perceived SD
   geom_line(size = 1.2) + # perceived
   scale_color_viridis_d(option = "viridis") + 
@@ -1067,4 +1078,22 @@ p_position_signal
 ggsave(filename = file.path(slmf_fig_path, "p_position_signal.svg"), plot = p_position_signal,
        width = 14, height = 7, units = "in")
 ```
+
+Finally, also add the evidence panel.
+
+```{r, fig.width=24, fig.height=10}
+# combine
+common_limits_x <- c(150, 500)
+p_position_signal_ext <- plot_grid(p_position_signal_x + theme(legend.position = "bottom") + 
+                                     xlim(common_limits_x[1], common_limits_x[2]), 
+                                   p_position_signal_y + theme(legend.position = "bottom") + 
+                                     xlim(common_limits_x[1], common_limits_x[2]), 
+                                   p_O + theme(legend.position = "bottom") + 
+                                     xlim(common_limits_x[1], common_limits_x[2]), 
+                                   nrow = 1, align = "hv", axis = "tblr", rel_widths = c(1, 1, 1))
+p_position_signal_ext
+ggsave(filename = file.path(slmf_fig_path, "p_position_signal_ext.svg"), plot = p_position_signal_ext,
+       width = 21, height = 7, units = "in")
+```
+
 
