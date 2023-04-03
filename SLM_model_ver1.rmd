@@ -10,7 +10,7 @@ output: github_document
 Do we want to output every figure as a vector graphics instead of png? If so, determine here:
 
 ```{r}
-output_form <- 'pdf'
+output_form <- 'svg'
 knitr::opts_chunk$set(dev = output_form) # set output device to svg or pdf
 ```
 

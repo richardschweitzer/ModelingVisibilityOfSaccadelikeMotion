@@ -9,7 +9,7 @@ Do we want to output every figure as a vector graphics instead of png?
 If so, determine here:
 
 ``` r
-output_form <- 'pdf'
+output_form <- 'svg'
 knitr::opts_chunk$set(dev = output_form) # set output device to svg or pdf
 ```
 
@@ -293,7 +293,7 @@ ggplot(data = st, aes(x = x, y = y, color = is_static)) +
   theme_minimal() + SlomTheme()
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-1.svg)<!-- -->
 
 ``` r
 # ... over-time plot
@@ -305,7 +305,7 @@ ggplot(data = st, aes(x = t, y = x, color = is_static, shape = "x")) +
   theme_minimal() + SlomTheme()
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-2.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-2.svg)<!-- -->
 
 ``` r
 # determine move onset and offset
@@ -319,7 +319,7 @@ ggplot(data = st, aes(x = t_on, y = y, color = is_static)) +
   theme_minimal() + SlomTheme()
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-3.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-3.svg)<!-- -->
 
 ``` r
 # ... x relative to offset
@@ -330,7 +330,7 @@ ggplot(data = st, aes(x = t_off, y = x, color = is_static)) +
   theme_minimal() + SlomTheme()
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-4.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-4.svg)<!-- -->
 
 ``` r
 # quick aggregate: number of samples
@@ -410,7 +410,7 @@ ggplot(n_samples, aes(x = abs_vel, y = dur_2, color = amp, group = amp,
 
     ## Warning: Ignoring unknown aesthetics: label
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-5.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-5.svg)<!-- -->
 
 # Preparation of the model
 
@@ -441,7 +441,7 @@ max_resp <- visual_proc_func(do_on_GPU = do_this_on_GPU,
                              skip_zeros = TRUE, output_final_matrices = TRUE) 
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-6-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-6-1.svg)<!-- -->
 
 ``` r
 max_resp_df <- melt(max_resp[[2]], # 2: not normalized, 3: normalized
@@ -470,7 +470,7 @@ points(total_max, total_max_O, col = "black") # max
 points(C, C^2 / (C^2 + C^2 ), col = "red") # C point
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-6-2.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-6-2.svg)<!-- -->
 
 # Illustration of the model
 
@@ -506,7 +506,7 @@ p_NR
     ## Warning in is.na(x): is.na() applied to non-(list or vector) of type
     ## 'expression'
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-7-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-7-1.svg)<!-- -->
 
 Second, illustrate the concept of visual processing. To do that, we’ll
 showcase the results of visually processing a stimulus of two velocities
@@ -588,7 +588,7 @@ p_speed_y <- ggplot(speed_df_y, aes(x = t, y = y, fill = w_full)) +
 plot_grid(p_speed_x, p_speed_y, nrow = 2, align = "hv")
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-8-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-8-1.svg)<!-- -->
 
 Third, we perform a readout – that is, just the maximum activation at
 each time point – to make a comparison between static and static+moving
@@ -669,7 +669,7 @@ p_speed_w <- ggplot(speed_df_w, aes(x = t, y = O_full)) +
 p_speed_w
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-9-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-9-1.svg)<!-- -->
 
 Finally, visualize the probability summation concept by comparing four
 different beta parameters.
@@ -728,7 +728,7 @@ p_evidence_acc
     ## Removed 244 row(s) containing missing values (geom_path).
     ## Removed 244 row(s) containing missing values (geom_path).
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-10-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-10-1.svg)<!-- -->
 
 Now we can combine all of those in one plot and export it.
 
@@ -754,7 +754,7 @@ p_all_aligned <- plot_grid(p_speed_x,
 p_all_aligned
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-11-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-11-1.svg)<!-- -->
 
 ``` r
 ggsave(filename = file.path(slmf_fig_path, paste0("p_all_aligned", ".", output_form)), 
@@ -795,7 +795,7 @@ p_example <- plot_grid(p_speed_x +
 p_example
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-12-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-12-1.svg)<!-- -->
 
 ``` r
 ggsave(filename = file.path(slmf_fig_path, paste0("p_example", ".", output_form)), 
@@ -812,8 +812,8 @@ gc()
 ```
 
     ##            used  (Mb) gc trigger   (Mb)  max used   (Mb)
-    ## Ncells  2687584 143.6    4556793  243.4   4556793  243.4
-    ## Vcells 15658330 119.5  540547167 4124.1 675683958 5155.1
+    ## Ncells  2690614 143.7    4513964  241.1   4513964  241.1
+    ## Vcells 15657878 119.5  610150295 4655.1 762687843 5818.9
 
 # Running the model
 
@@ -1152,7 +1152,7 @@ p_O <- ggplot(data = all_res, aes(x = t, y = O_full-O_absent, color = velFac_f))
 p_O
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-16-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-16-1.svg)<!-- -->
 
 And according to the probability summation idea, we can sum this
 difference to compute evidence.
@@ -1207,7 +1207,7 @@ p_prob_sum <- ggplot(data = prob_sum_agg, aes(x = velFac, y = prob_sum,
 p_prob_sum
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-17-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-17-1.svg)<!-- -->
 
 ``` r
 # horizontal version:
@@ -1352,7 +1352,7 @@ p_sim_p_correct <- ggplot(data = sim_p_correct, aes(x = velFac, y = m / n_trials
 p_sim_p_correct
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-18-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-18-1.svg)<!-- -->
 
 ``` r
 # horizontal version:
@@ -1552,7 +1552,7 @@ p_sim_p_correct_nothres <- ggplot(data = sim_p_correct_nothres,
 p_sim_p_correct_nothres
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-19-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-19-1.svg)<!-- -->
 
 ``` r
 # horizontal version:
@@ -1570,7 +1570,7 @@ p_model_res <- plot_grid(p_O + theme(legend.position = "bottom"),
 p_model_res
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-20-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-20-1.svg)<!-- -->
 
 ``` r
 ggsave(filename = file.path(slmf_fig_path, paste0("p_model_res", ".", output_form)), 
@@ -1587,7 +1587,7 @@ p_model_res_2 <- plot_grid(p_prob_sum_2 + theme(legend.position = "bottom"),
 p_model_res_2
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-21-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-21-1.svg)<!-- -->
 
 ``` r
 ggsave(filename = file.path(slmf_fig_path, paste0("p_model_res_2", ".", output_form)), 
@@ -1617,7 +1617,7 @@ p_position_signal_x <- ggplot(data = all_res[t>t_start+lat+1], aes(x = t, y = x_
 p_position_signal_x
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-22-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-22-1.svg)<!-- -->
 
 ``` r
 # ... y
@@ -1635,7 +1635,7 @@ p_position_signal_y <- ggplot(data = all_res[t>t_start+lat+1], aes(x = t, y = y_
 p_position_signal_y
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-22-2.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-22-2.svg)<!-- -->
 
 ``` r
 # combine these plots
@@ -1645,7 +1645,7 @@ p_position_signal <- plot_grid(p_position_signal_x + theme(legend.position = "bo
 p_position_signal
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-22-3.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-22-3.svg)<!-- -->
 
 ``` r
 ggsave(filename = file.path(slmf_fig_path, paste0("p_position_signal", ".", output_form)), 
@@ -1676,7 +1676,7 @@ p_position_signal_ext <- plot_grid(p_position_signal_x + theme(legend.position =
 p_position_signal_ext
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-23-1.pdf)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-23-1.svg)<!-- -->
 
 ``` r
 ggsave(filename = file.path(slmf_fig_path, paste0("p_position_signal_ext", ".", output_form)), 
