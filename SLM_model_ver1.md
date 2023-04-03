@@ -5,6 +5,14 @@ Richard Schweitzer
 
 # Setup of the model
 
+Do we want to output every figure as a vector graphics instead of png?
+If so, determine here:
+
+``` r
+output_form <- 'pdf'
+knitr::opts_chunk$set(dev = output_form) # set output device to svg or pdf
+```
+
 Load dependencies …
 
 ``` r
@@ -66,7 +74,7 @@ library(torch)
 cuda_is_available() # check: is cuda available?
 ```
 
-    ## [1] FALSE
+    ## [1] TRUE
 
 ``` r
 # relevant custom functions
@@ -285,7 +293,7 @@ ggplot(data = st, aes(x = x, y = y, color = is_static)) +
   theme_minimal() + SlomTheme()
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-1.pdf)<!-- -->
 
 ``` r
 # ... over-time plot
@@ -297,7 +305,7 @@ ggplot(data = st, aes(x = t, y = x, color = is_static, shape = "x")) +
   theme_minimal() + SlomTheme()
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-2.pdf)<!-- -->
 
 ``` r
 # determine move onset and offset
@@ -311,7 +319,7 @@ ggplot(data = st, aes(x = t_on, y = y, color = is_static)) +
   theme_minimal() + SlomTheme()
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-4-3.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-3.pdf)<!-- -->
 
 ``` r
 # ... x relative to offset
@@ -322,7 +330,7 @@ ggplot(data = st, aes(x = t_off, y = x, color = is_static)) +
   theme_minimal() + SlomTheme()
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-4-4.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-4.pdf)<!-- -->
 
 ``` r
 # quick aggregate: number of samples
@@ -402,7 +410,7 @@ ggplot(n_samples, aes(x = abs_vel, y = dur_2, color = amp, group = amp,
 
     ## Warning: Ignoring unknown aesthetics: label
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-4-5.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-5.pdf)<!-- -->
 
 # Preparation of the model
 
@@ -433,7 +441,7 @@ max_resp <- visual_proc_func(do_on_GPU = do_this_on_GPU,
                              skip_zeros = TRUE, output_final_matrices = TRUE) 
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-6-1.pdf)<!-- -->
 
 ``` r
 max_resp_df <- melt(max_resp[[2]], # 2: not normalized, 3: normalized
@@ -462,7 +470,7 @@ points(total_max, total_max_O, col = "black") # max
 points(C, C^2 / (C^2 + C^2 ), col = "red") # C point
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-5-2.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-6-2.pdf)<!-- -->
 
 # Illustration of the model
 
@@ -498,7 +506,7 @@ p_NR
     ## Warning in is.na(x): is.na() applied to non-(list or vector) of type
     ## 'expression'
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-7-1.pdf)<!-- -->
 
 Second, illustrate the concept of visual processing. To do that, we’ll
 showcase the results of visually processing a stimulus of two velocities
@@ -580,7 +588,7 @@ p_speed_y <- ggplot(speed_df_y, aes(x = t, y = y, fill = w_full)) +
 plot_grid(p_speed_x, p_speed_y, nrow = 2, align = "hv")
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-8-1.pdf)<!-- -->
 
 Third, we perform a readout – that is, just the maximum activation at
 each time point – to make a comparison between static and static+moving
@@ -661,7 +669,7 @@ p_speed_w <- ggplot(speed_df_w, aes(x = t, y = O_full)) +
 p_speed_w
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-9-1.pdf)<!-- -->
 
 Finally, visualize the probability summation concept by comparing four
 different beta parameters.
@@ -720,16 +728,16 @@ p_evidence_acc
     ## Removed 244 row(s) containing missing values (geom_path).
     ## Removed 244 row(s) containing missing values (geom_path).
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-10-1.pdf)<!-- -->
 
-Now we can combine all of those in one plot and export it as a svg.
+Now we can combine all of those in one plot and export it.
 
 ``` r
 p_all_aligned <- plot_grid(p_speed_x, 
-                       p_speed_y, 
-                       p_speed_w, 
-                       p_evidence_acc, 
-                       nrow = 4, align = "hv")
+                           p_speed_y, 
+                           p_speed_w, 
+                           p_evidence_acc, 
+                           nrow = 4, align = "hv")
 ```
 
     ## Warning: Transformation introduced infinite values in continuous y-axis
@@ -746,21 +754,28 @@ p_all_aligned <- plot_grid(p_speed_x,
 p_all_aligned
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-11-1.pdf)<!-- -->
 
 ``` r
-ggsave(filename = file.path(slmf_fig_path, "p_all_aligned.svg"), plot = p_all_aligned,
+ggsave(filename = file.path(slmf_fig_path, paste0("p_all_aligned", ".", output_form)), 
+       plot = p_all_aligned,
        width = 12, height = 14, units = "in")
 ```
 
 … another version, with normalization:
 
 ``` r
-p_example <- plot_grid(p_speed_x + theme(legend.position = "bottom", legend.direction = "horizontal"), 
-                       p_speed_y + theme(legend.position = "bottom", legend.direction = "horizontal"), 
-                       plot_grid(p_NR + theme(legend.position = "bottom", legend.direction = "horizontal"), 
-                                 p_NR + theme(legend.position = "bottom", legend.direction = "horizontal"), nrow = 1), 
-                       p_speed_w + theme(legend.position = "bottom", legend.direction = "horizontal"), 
+p_example <- plot_grid(p_speed_x + 
+                         theme(legend.position = "bottom", legend.direction = "horizontal"), 
+                       p_speed_y + 
+                         theme(legend.position = "bottom", legend.direction = "horizontal"), 
+                       plot_grid(p_NR + 
+                                   theme(legend.position = "bottom", legend.direction = "horizontal"), 
+                                 p_NR + 
+                                   theme(legend.position = "bottom", legend.direction = "horizontal"), 
+                                 nrow = 1), 
+                       p_speed_w + 
+                         theme(legend.position = "bottom", legend.direction = "horizontal"), 
                        nrow = 2, align = "hv")
 ```
 
@@ -780,10 +795,11 @@ p_example <- plot_grid(p_speed_x + theme(legend.position = "bottom", legend.dire
 p_example
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-12-1.pdf)<!-- -->
 
 ``` r
-ggsave(filename = file.path(slmf_fig_path, "p_example.svg"), plot = p_example,
+ggsave(filename = file.path(slmf_fig_path, paste0("p_example", ".", output_form)), 
+       plot = p_example,
        width = 14, height = 7, units = "in")
 ```
 
@@ -796,8 +812,8 @@ gc()
 ```
 
     ##            used  (Mb) gc trigger   (Mb)  max used   (Mb)
-    ## Ncells  2748092 146.8    4590011  245.2   4590011  245.2
-    ## Vcells 15814705 120.7  533789001 4072.5 667236251 5090.7
+    ## Ncells  2687584 143.6    4556793  243.4   4556793  243.4
+    ## Vcells 15658330 119.5  540547167 4124.1 675683958 5155.1
 
 # Running the model
 
@@ -1136,12 +1152,14 @@ p_O <- ggplot(data = all_res, aes(x = t, y = O_full-O_absent, color = velFac_f))
 p_O
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-16-1.pdf)<!-- -->
 
 And according to the probability summation idea, we can sum this
 difference to compute evidence.
 
 ``` r
+# the highest velocity is 1.25 * vpeak, but Martin usually plots to 1.5 * vpeak
+expand_to <- 0.15 # set to 0 to just plot until 1.25 * vpeak
 # probability summation results
 prob_sum_agg <- all_res[ , .(prob_sum = max(prob_sum), 
                              prob_sum_SD = mean(prob_sum_SD[prob_sum==max(prob_sum)]), 
@@ -1166,6 +1184,7 @@ prob_sum_agg[velFac==1, prob_sum, by = .(mask_time_f, visual_scale_f, amp_f)]
     ## 12:      200 ms       sca=12.5 12 dva 0.4035794
 
 ``` r
+# here comes the plot
 p_prob_sum <- ggplot(data = prob_sum_agg, aes(x = velFac, y = prob_sum, 
                                               color = amp_f, group = amp_f)) + 
   geom_vline(xintercept = 1, linetype = "dashed") + 
@@ -1177,16 +1196,23 @@ p_prob_sum <- ggplot(data = prob_sum_agg, aes(x = velFac, y = prob_sum,
   scale_color_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
   scale_fill_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
   facet_grid(mask_time_f~fa) + 
-  theme_classic(base_size = 12) + SlomTheme() + #coord_cartesian(expand = FALSE) + 
-  scale_y_sqrt(breaks = round(seq(sqrt(0), sqrt(20), length.out = 5)^2, 1), expand = c(0,0)) + 
-  #scale_x_log10() +
+  theme_classic(base_size = 12) + SlomTheme() + 
+  scale_y_sqrt(breaks = round(seq(sqrt(0), sqrt(20), length.out = 5)^2, 1), 
+               expand = c(0,0)) + 
+  scale_x_continuous(breaks = c(0.2, 0.6, 1, 1.25+expand_to), 
+                     limits = c(0.2, 1.25+expand_to)) + 
   labs(x = "Velocity [% Peak Vel.]", 
        y = TeX("$(\\sum_{t}^{} |O_{static+moving}(t)\ -\ O_{static}(t)|^{\\beta})^{\\frac{1}{\\beta}}$"), 
        color = "Amplitude [dva]", fill = "Amplitude [dva]")
 p_prob_sum
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-17-1.pdf)<!-- -->
+
+``` r
+# horizontal version:
+p_prob_sum_2 <- p_prob_sum + facet_grid(fa~mask_time_f)
+```
 
 Now we can think about how to convert this evidence to some behavioral
 report. I’ve implemented two options: 1. The binomial sampler: We’ll
@@ -1292,8 +1318,8 @@ summary(glm_sim_p_correct)
 sim_p_correct_expand <- expand.grid(list(mask_time_f = unique(sim_p_correct$mask_time_f), 
                                          visual_scale_f = unique(sim_p_correct$visual_scale_f),
                                          amp_f = unique(sim_p_correct$amp_f), 
-                                         velFac = seq(min(sim_p_correct$velFac), 
-                                                      max(sim_p_correct$velFac),#+0.25, 
+                                         velFac = seq(min(sim_p_correct$velFac)-0.2, 
+                                                      max(sim_p_correct$velFac)+0.2+expand_to, 
                                                       by = 0.01) ))
 sim_p_correct_expand$glm_predict <- predict(object = glm_sim_p_correct, type = "response", 
                                             newdata = sim_p_correct_expand)
@@ -1316,16 +1342,22 @@ p_sim_p_correct <- ggplot(data = sim_p_correct, aes(x = velFac, y = m / n_trials
   scale_fill_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
   facet_grid(mask_time_f~fa) + 
   theme_classic(base_size = 12) + SlomTheme() + 
-  scale_x_continuous(breaks = c(0.25, 0.5, 0.75, 1, 1.25, 1.5)) + 
-  scale_y_continuous(limits = c(0.4, 1), expand = c(0, 0), breaks = c(0.5, 0.75, 1)) + 
+  scale_x_continuous(breaks = c(0.2, 0.6, 1, 1.25+expand_to)) + 
+  scale_y_continuous(breaks = seq(0.5, 1, by = 0.1), 
+                     expand = c(0, 0)) + 
+  coord_cartesian(xlim = c(0.2, 1.25+expand_to), 
+                  ylim = c(0.4, 1.0) ) + 
   labs(x = "Velocity [% Peak Vel.]", y = "Simulated proportion correct", 
        color = "Amplitude [dva]", fill = "Amplitude [dva]")
 p_sim_p_correct
 ```
 
-    ## Warning: Removed 4 rows containing missing values (geom_hline).
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-18-1.pdf)<!-- -->
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+``` r
+# horizontal version:
+p_sim_p_correct_2 <- p_sim_p_correct + facet_grid(fa~mask_time_f)
+```
 
 Now the alternative: 2. The simple Gaussian sampler. Again, we’ll sample
 around the mean evidence in each condition and we’ll assume one free
@@ -1482,8 +1514,8 @@ summary(glm_sim_p_correct_nothres_2)
 sim_p_correct_nothres_expand <- expand.grid(list(mask_time_f = unique(sim_p_correct_nothres$mask_time_f), 
                                                  visual_scale_f = unique(sim_p_correct_nothres$visual_scale_f),
                                                  amp_f = unique(sim_p_correct_nothres$amp_f), 
-                                                 velFac = seq(min(sim_p_correct_nothres$velFac), 
-                                                              max(sim_p_correct_nothres$velFac),#+0.25, 
+                                                 velFac = seq(min(sim_p_correct_nothres$velFac)-0.2, 
+                                                              max(sim_p_correct_nothres$velFac)+0.2+expand_to, 
                                                               0.01) ))
 sim_p_correct_nothres_expand$glm_predict <- predict(glm_sim_p_correct_nothres, type = "response", 
                                                     newdata = sim_p_correct_nothres_expand)
@@ -1510,16 +1542,22 @@ p_sim_p_correct_nothres <- ggplot(data = sim_p_correct_nothres,
   scale_fill_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
   facet_grid(mask_time_f~fa) + 
   theme_classic(base_size = 12) + SlomTheme() + 
-  scale_x_continuous(breaks = c(0.25, 0.5, 0.75, 1, 1.25, 1.5)) + 
-  scale_y_continuous(limits = c(0.4, 1.0), expand = c(0, 0), breaks = c(0.5, 0.75, 1)) + 
+  scale_x_continuous(breaks = c(0.2, 0.6, 1, 1.25+expand_to)) + 
+  scale_y_continuous(breaks = seq(0.5, 1, by = 0.1), 
+                     expand = c(0, 0)) + 
+  coord_cartesian(xlim = c(0.2, 1.25+expand_to), 
+                  ylim = c(0.4, 1.0) ) + 
   labs(x = "Velocity [% Peak Vel.]", y = "Simulated proportion correct", 
        color = "Amplitude [dva]", fill = "Amplitude [dva]")
 p_sim_p_correct_nothres
 ```
 
-    ## Warning: Removed 4 rows containing missing values (geom_hline).
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-19-1.pdf)<!-- -->
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+``` r
+# horizontal version:
+p_sim_p_correct_nothres_2 <- p_sim_p_correct_nothres + facet_grid(fa~mask_time_f)
+```
 
 Now combine these into one plot:
 
@@ -1528,20 +1566,33 @@ p_model_res <- plot_grid(p_O + theme(legend.position = "bottom"),
                          p_prob_sum + theme(legend.position = "bottom"), 
                          #p_sim_p_correct + theme(legend.position = "bottom"), 
                          p_sim_p_correct_nothres + theme(legend.position = "bottom"), 
-                         nrow = 1, align = "hv", axis = "tblr", rel_widths = c(2.5, 1, 1, 1))
-```
-
-    ## Warning: Removed 4 rows containing missing values (geom_hline).
-
-``` r
+                         nrow = 1, align = "hv", axis = "tblr", rel_widths = c(2.5, 1, 1))
 p_model_res
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-20-1.pdf)<!-- -->
 
 ``` r
-ggsave(filename = file.path(slmf_fig_path, "p_model_res.svg"), plot = p_model_res,
-       width = 14, height = 7, units = "in")
+ggsave(filename = file.path(slmf_fig_path, paste0("p_model_res", ".", output_form)), 
+       plot = p_model_res,
+       width = 13, height = 7.5, units = "in")
+```
+
+And a second version for Martin:
+
+``` r
+p_model_res_2 <- plot_grid(p_prob_sum_2 + theme(legend.position = "bottom"), 
+                           p_sim_p_correct_nothres_2 + theme(legend.position = "bottom"), 
+                           nrow = 2, align = "hv", axis = "tblr", rel_widths = c(1, 1))
+p_model_res_2
+```
+
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-21-1.pdf)<!-- -->
+
+``` r
+ggsave(filename = file.path(slmf_fig_path, paste0("p_model_res_2", ".", output_form)), 
+       plot = p_model_res_2,
+       width = 9.3, height = 7, units = "in")
 ```
 
 Finally, by reading out the population location response, we can have a
@@ -1566,7 +1617,7 @@ p_position_signal_x <- ggplot(data = all_res[t>t_start+lat+1], aes(x = t, y = x_
 p_position_signal_x
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-22-1.pdf)<!-- -->
 
 ``` r
 # ... y
@@ -1584,7 +1635,7 @@ p_position_signal_y <- ggplot(data = all_res[t>t_start+lat+1], aes(x = t, y = y_
 p_position_signal_y
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-22-2.pdf)<!-- -->
 
 ``` r
 # combine these plots
@@ -1594,10 +1645,11 @@ p_position_signal <- plot_grid(p_position_signal_x + theme(legend.position = "bo
 p_position_signal
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-20-3.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-22-3.pdf)<!-- -->
 
 ``` r
-ggsave(filename = file.path(slmf_fig_path, "p_position_signal.svg"), plot = p_position_signal,
+ggsave(filename = file.path(slmf_fig_path, paste0("p_position_signal", ".", output_form)), 
+       plot = p_position_signal,
        width = 14, height = 7, units = "in")
 ```
 
@@ -1624,9 +1676,10 @@ p_position_signal_ext <- plot_grid(p_position_signal_x + theme(legend.position =
 p_position_signal_ext
 ```
 
-![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+![](SLM_model_ver1_files/figure-gfm/unnamed-chunk-23-1.pdf)<!-- -->
 
 ``` r
-ggsave(filename = file.path(slmf_fig_path, "p_position_signal_ext.svg"), plot = p_position_signal_ext,
+ggsave(filename = file.path(slmf_fig_path, paste0("p_position_signal_ext", ".", output_form)), 
+       plot = p_position_signal_ext,
        width = 21, height = 7, units = "in")
 ```

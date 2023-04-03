@@ -7,6 +7,13 @@ output: github_document
 
 # Setup of the model
 
+Do we want to output every figure as a vector graphics instead of png? If so, determine here:
+
+```{r}
+output_form <- 'pdf'
+knitr::opts_chunk$set(dev = output_form) # set output device to svg or pdf
+```
+
 Load dependencies ...
 
 ```{r}
@@ -459,30 +466,38 @@ p_evidence_acc <- ggplot(speed_df_w, aes(x = t, y = prob_sum_1)) +
 p_evidence_acc
 ```
 
-Now we can combine all of those in one plot and export it as a svg.
+Now we can combine all of those in one plot and export it.
 
 ```{r, fig.width=16, fig.height=20}
 p_all_aligned <- plot_grid(p_speed_x, 
-                       p_speed_y, 
-                       p_speed_w, 
-                       p_evidence_acc, 
-                       nrow = 4, align = "hv")
+                           p_speed_y, 
+                           p_speed_w, 
+                           p_evidence_acc, 
+                           nrow = 4, align = "hv")
 p_all_aligned
-ggsave(filename = file.path(slmf_fig_path, "p_all_aligned.svg"), plot = p_all_aligned,
+ggsave(filename = file.path(slmf_fig_path, paste0("p_all_aligned", ".", output_form)), 
+       plot = p_all_aligned,
        width = 12, height = 14, units = "in")
 ```
 
 ... another version, with normalization:
 
 ```{r, fig.width=16, fig.height=10}
-p_example <- plot_grid(p_speed_x + theme(legend.position = "bottom", legend.direction = "horizontal"), 
-                       p_speed_y + theme(legend.position = "bottom", legend.direction = "horizontal"), 
-                       plot_grid(p_NR + theme(legend.position = "bottom", legend.direction = "horizontal"), 
-                                 p_NR + theme(legend.position = "bottom", legend.direction = "horizontal"), nrow = 1), 
-                       p_speed_w + theme(legend.position = "bottom", legend.direction = "horizontal"), 
+p_example <- plot_grid(p_speed_x + 
+                         theme(legend.position = "bottom", legend.direction = "horizontal"), 
+                       p_speed_y + 
+                         theme(legend.position = "bottom", legend.direction = "horizontal"), 
+                       plot_grid(p_NR + 
+                                   theme(legend.position = "bottom", legend.direction = "horizontal"), 
+                                 p_NR + 
+                                   theme(legend.position = "bottom", legend.direction = "horizontal"), 
+                                 nrow = 1), 
+                       p_speed_w + 
+                         theme(legend.position = "bottom", legend.direction = "horizontal"), 
                        nrow = 2, align = "hv")
 p_example
-ggsave(filename = file.path(slmf_fig_path, "p_example.svg"), plot = p_example,
+ggsave(filename = file.path(slmf_fig_path, paste0("p_example", ".", output_form)), 
+       plot = p_example,
        width = 14, height = 7, units = "in")
 ```
 
@@ -833,6 +848,8 @@ p_O
 And according to the probability summation idea, we can sum this difference to compute evidence.
 
 ```{r, fig.width=8, fig.height=12}
+# the highest velocity is 1.25 * vpeak, but Martin usually plots to 1.5 * vpeak
+expand_to <- 0.15 # set to 0 to just plot until 1.25 * vpeak
 # probability summation results
 prob_sum_agg <- all_res[ , .(prob_sum = max(prob_sum), 
                              prob_sum_SD = mean(prob_sum_SD[prob_sum==max(prob_sum)]), 
@@ -840,6 +857,7 @@ prob_sum_agg <- all_res[ , .(prob_sum = max(prob_sum),
                          by = .(mask_time_f, visual_scale_f, amp_f, velFac_f, velFac)]
 prob_sum_agg$fa <- "Evidence"
 prob_sum_agg[velFac==1, prob_sum, by = .(mask_time_f, visual_scale_f, amp_f)]
+# here comes the plot
 p_prob_sum <- ggplot(data = prob_sum_agg, aes(x = velFac, y = prob_sum, 
                                               color = amp_f, group = amp_f)) + 
   geom_vline(xintercept = 1, linetype = "dashed") + 
@@ -851,13 +869,17 @@ p_prob_sum <- ggplot(data = prob_sum_agg, aes(x = velFac, y = prob_sum,
   scale_color_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
   scale_fill_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
   facet_grid(mask_time_f~fa) + 
-  theme_classic(base_size = 12) + SlomTheme() + #coord_cartesian(expand = FALSE) + 
-  scale_y_sqrt(breaks = round(seq(sqrt(0), sqrt(20), length.out = 5)^2, 1), expand = c(0,0)) + 
-  #scale_x_log10() +
+  theme_classic(base_size = 12) + SlomTheme() + 
+  scale_y_sqrt(breaks = round(seq(sqrt(0), sqrt(20), length.out = 5)^2, 1), 
+               expand = c(0,0)) + 
+  scale_x_continuous(breaks = c(0.2, 0.6, 1, 1.25+expand_to), 
+                     limits = c(0.2, 1.25+expand_to)) + 
   labs(x = "Velocity [% Peak Vel.]", 
        y = TeX("$(\\sum_{t}^{} |O_{static+moving}(t)\ -\ O_{static}(t)|^{\\beta})^{\\frac{1}{\\beta}}$"), 
        color = "Amplitude [dva]", fill = "Amplitude [dva]")
 p_prob_sum
+# horizontal version:
+p_prob_sum_2 <- p_prob_sum + facet_grid(fa~mask_time_f)
 ```
 
 Now we can think about how to convert this evidence to some behavioral report. I've implemented two options:
@@ -910,8 +932,8 @@ summary(glm_sim_p_correct)
 sim_p_correct_expand <- expand.grid(list(mask_time_f = unique(sim_p_correct$mask_time_f), 
                                          visual_scale_f = unique(sim_p_correct$visual_scale_f),
                                          amp_f = unique(sim_p_correct$amp_f), 
-                                         velFac = seq(min(sim_p_correct$velFac), 
-                                                      max(sim_p_correct$velFac),#+0.25, 
+                                         velFac = seq(min(sim_p_correct$velFac)-0.2, 
+                                                      max(sim_p_correct$velFac)+0.2+expand_to, 
                                                       by = 0.01) ))
 sim_p_correct_expand$glm_predict <- predict(object = glm_sim_p_correct, type = "response", 
                                             newdata = sim_p_correct_expand)
@@ -934,11 +956,16 @@ p_sim_p_correct <- ggplot(data = sim_p_correct, aes(x = velFac, y = m / n_trials
   scale_fill_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
   facet_grid(mask_time_f~fa) + 
   theme_classic(base_size = 12) + SlomTheme() + 
-  scale_x_continuous(breaks = c(0.25, 0.5, 0.75, 1, 1.25, 1.5)) + 
-  scale_y_continuous(limits = c(0.4, 1), expand = c(0, 0), breaks = c(0.5, 0.75, 1)) + 
+  scale_x_continuous(breaks = c(0.2, 0.6, 1, 1.25+expand_to)) + 
+  scale_y_continuous(breaks = seq(0.5, 1, by = 0.1), 
+                     expand = c(0, 0)) + 
+  coord_cartesian(xlim = c(0.2, 1.25+expand_to), 
+                  ylim = c(0.4, 1.0) ) + 
   labs(x = "Velocity [% Peak Vel.]", y = "Simulated proportion correct", 
        color = "Amplitude [dva]", fill = "Amplitude [dva]")
 p_sim_p_correct
+# horizontal version:
+p_sim_p_correct_2 <- p_sim_p_correct + facet_grid(fa~mask_time_f)
 ```
 
 Now the alternative:
@@ -994,8 +1021,8 @@ summary(glm_sim_p_correct_nothres_2)
 sim_p_correct_nothres_expand <- expand.grid(list(mask_time_f = unique(sim_p_correct_nothres$mask_time_f), 
                                                  visual_scale_f = unique(sim_p_correct_nothres$visual_scale_f),
                                                  amp_f = unique(sim_p_correct_nothres$amp_f), 
-                                                 velFac = seq(min(sim_p_correct_nothres$velFac), 
-                                                              max(sim_p_correct_nothres$velFac),#+0.25, 
+                                                 velFac = seq(min(sim_p_correct_nothres$velFac)-0.2, 
+                                                              max(sim_p_correct_nothres$velFac)+0.2+expand_to, 
                                                               0.01) ))
 sim_p_correct_nothres_expand$glm_predict <- predict(glm_sim_p_correct_nothres, type = "response", 
                                                     newdata = sim_p_correct_nothres_expand)
@@ -1022,11 +1049,16 @@ p_sim_p_correct_nothres <- ggplot(data = sim_p_correct_nothres,
   scale_fill_viridis_d(option = "mako", begin = 0.3, end = 0.6, direction = -1) + 
   facet_grid(mask_time_f~fa) + 
   theme_classic(base_size = 12) + SlomTheme() + 
-  scale_x_continuous(breaks = c(0.25, 0.5, 0.75, 1, 1.25, 1.5)) + 
-  scale_y_continuous(limits = c(0.4, 1.0), expand = c(0, 0), breaks = c(0.5, 0.75, 1)) + 
+  scale_x_continuous(breaks = c(0.2, 0.6, 1, 1.25+expand_to)) + 
+  scale_y_continuous(breaks = seq(0.5, 1, by = 0.1), 
+                     expand = c(0, 0)) + 
+  coord_cartesian(xlim = c(0.2, 1.25+expand_to), 
+                  ylim = c(0.4, 1.0) ) + 
   labs(x = "Velocity [% Peak Vel.]", y = "Simulated proportion correct", 
        color = "Amplitude [dva]", fill = "Amplitude [dva]")
 p_sim_p_correct_nothres
+# horizontal version:
+p_sim_p_correct_nothres_2 <- p_sim_p_correct_nothres + facet_grid(fa~mask_time_f)
 ```
 
 Now combine these into one plot:
@@ -1036,11 +1068,25 @@ p_model_res <- plot_grid(p_O + theme(legend.position = "bottom"),
                          p_prob_sum + theme(legend.position = "bottom"), 
                          #p_sim_p_correct + theme(legend.position = "bottom"), 
                          p_sim_p_correct_nothres + theme(legend.position = "bottom"), 
-                         nrow = 1, align = "hv", axis = "tblr", rel_widths = c(2.5, 1, 1, 1))
+                         nrow = 1, align = "hv", axis = "tblr", rel_widths = c(2.5, 1, 1))
 p_model_res
-ggsave(filename = file.path(slmf_fig_path, "p_model_res.svg"), plot = p_model_res,
-       width = 14, height = 7, units = "in")
+ggsave(filename = file.path(slmf_fig_path, paste0("p_model_res", ".", output_form)), 
+       plot = p_model_res,
+       width = 13, height = 7.5, units = "in")
 ```
+
+And a second version for Martin:
+
+```{r, fig.width=16, fig.height=10}
+p_model_res_2 <- plot_grid(p_prob_sum_2 + theme(legend.position = "bottom"), 
+                           p_sim_p_correct_nothres_2 + theme(legend.position = "bottom"), 
+                           nrow = 2, align = "hv", axis = "tblr", rel_widths = c(1, 1))
+p_model_res_2
+ggsave(filename = file.path(slmf_fig_path, paste0("p_model_res_2", ".", output_form)), 
+       plot = p_model_res_2,
+       width = 9.3, height = 7, units = "in")
+```
+
 
 Finally, by reading out the population location response, we can have a look at the phenomenal appearance of the stimulus. Interestingly, as velocity increases, the motion does not appear continuous anymore, but seems more like a step function. Moreover, on the vertical dimension, the curvature becomes indiscriminable, which is also predicted by the model.
 
@@ -1075,7 +1121,8 @@ p_position_signal <- plot_grid(p_position_signal_x + theme(legend.position = "bo
                                p_position_signal_y + theme(legend.position = "bottom"), 
                                nrow = 1, align = "hv", axis = "tblr", rel_widths = c(1, 1))
 p_position_signal
-ggsave(filename = file.path(slmf_fig_path, "p_position_signal.svg"), plot = p_position_signal,
+ggsave(filename = file.path(slmf_fig_path, paste0("p_position_signal", ".", output_form)), 
+       plot = p_position_signal,
        width = 14, height = 7, units = "in")
 ```
 
@@ -1092,7 +1139,8 @@ p_position_signal_ext <- plot_grid(p_position_signal_x + theme(legend.position =
                                      xlim(common_limits_x[1], common_limits_x[2]), 
                                    nrow = 1, align = "hv", axis = "tblr", rel_widths = c(1, 1, 1))
 p_position_signal_ext
-ggsave(filename = file.path(slmf_fig_path, "p_position_signal_ext.svg"), plot = p_position_signal_ext,
+ggsave(filename = file.path(slmf_fig_path, paste0("p_position_signal_ext", ".", output_form)), 
+       plot = p_position_signal_ext,
        width = 21, height = 7, units = "in")
 ```
 
