@@ -1,6 +1,6 @@
 # ModelingVisibilityOfSaccadelikeMotion
 
-Simple early-vision model to explain the experimental data presented in Rolfs, Schweitzer, Castet, Watson, Ohl (in prep), doi: TBA, available at URLHERE. 
+Simple early-vision model to explain the experimental data presented in Rolfs, Schweitzer, Castet, Watson, Ohl (2023). The preprint is available at https://doi.org/10.1101/2023.07.17.549281. 
 
 Have a look at the markdown document [SLM_model_ver1.md](../main/SLM_model_ver1.md) for modeling code and results. For a thorough description, please see the above mentioned manuscript and link. 
 
