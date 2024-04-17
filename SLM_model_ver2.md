@@ -1879,7 +1879,7 @@ p_fixed_e_SD <- ggplot(data = superexpand_true_diff, aes(x = spatial_rf_sd, y = 
                        limits = c(min(superexpand_grid_true_diff$mean_thres_diff), 
                                   max(superexpand_true_diff$mean_thres_diff)), 
                        breaks = c(0.01, 0.1, 1)) + 
-  SlomTheme() + 
+  SlomTheme() + theme(legend.position = "bottom") + 
   labs(#x = "Spatial Gaussian SD parameter [dva]", y = "Temporal Gamma Scale parameter [ms]", 
        x = TeX("$\\sigma_{RF}$"), y = TeX("$\\theta_{RF}$"),
        fill = "MSE", 
@@ -1897,7 +1897,7 @@ p_flexible_e_SD <- ggplot(data = superexpand_grid_true_diff, aes(x = spatial_rf_
                        limits = c(min(superexpand_grid_true_diff$mean_thres_diff), 
                                   max(superexpand_true_diff$mean_thres_diff)), 
                        breaks = c(0.01, 0.1, 1)) + 
-  SlomTheme() + 
+  SlomTheme() + theme(legend.position = "bottom") + 
   labs(#x = "Spatial Gaussian SD parameter [dva]", y = "Temporal Gamma Scale parameter [ms]", 
        x = TeX("$\\sigma_{RF}$"), y = TeX("$\\theta_{RF}$"),
        fill = "MSE", 
@@ -1912,7 +1912,7 @@ p_best_e_SD <- ggplot(data = superexpand_grid_true_diff, aes(x = spatial_rf_sd, 
   geom_tile() + 
   coord_cartesian(expand = FALSE) + 
   scale_fill_viridis_c(option = "magma") + 
-  SlomTheme() + 
+  SlomTheme() + theme(legend.position = "bottom") + 
   labs(#x = "Spatial Gaussian SD parameter [dva]", y = "Temporal Gamma Scale parameter [ms]", 
        x = TeX("$\\sigma_{RF}$"), y = TeX("$\\theta_{RF}$"),
        fill = TeX("$\\sigma_{E}$"),
@@ -1937,10 +1937,12 @@ mad <- function(x, m) {
 }
 # compute the MAD for model predictions for fixed and fitted sigma_E
 signature_fixed <- superexpand_true[ , 
-                                     .(mad = mad(thres[MaskDur>0.02]) ), 
+                                     .(mad = mad(thres[MaskDur>0.02]), 
+                                       mad_other = mad(thres[MaskDur<0.02]) ), 
                                     by = .(visual_scale, spatial_rf_sd)]
 signature_fitted <- all_best_e_SD_fits[ , 
-                                     .(mad = mad(thres[MaskDur>0.02]) ), 
+                                     .(mad = mad(thres[MaskDur>0.02]), 
+                                       mad_other = mad(thres[MaskDur<0.02]) ), 
                                     by = .(visual_scale, spatial_rf_sd)]
 # plot
 p_signature_fixed <- ggplot(data = signature_fixed, aes(x = spatial_rf_sd, y = visual_scale, 
@@ -1952,7 +1954,7 @@ p_signature_fixed <- ggplot(data = signature_fixed, aes(x = spatial_rf_sd, y = v
   scale_fill_viridis_c(option = "mako", trans = "log10", 
                        limits = c(min(signature_fitted$mad), 
                                   max(signature_fixed$mad)) ) + 
-  SlomTheme() + 
+  SlomTheme() + theme(legend.position = "bottom") + 
   labs(#x = "Spatial Gaussian SD parameter [dva]", y = "Temporal Gamma Scale parameter [ms]", 
        x = TeX("$\\sigma_{RF}$"), y = TeX("$\\theta_{RF}$"),
        fill = "MAD", 
@@ -1970,7 +1972,7 @@ p_signature_fitted <- ggplot(data = signature_fitted, aes(x = spatial_rf_sd, y =
   scale_fill_viridis_c(option = "mako", trans = "log10", 
                        limits = c(min(signature_fitted$mad), 
                                   max(signature_fixed$mad)) ) + 
-  SlomTheme() + 
+  SlomTheme() + theme(legend.position = "bottom") + 
   labs(#x = "Spatial Gaussian SD parameter [dva]", y = "Temporal Gamma Scale parameter [ms]", 
        x = TeX("$\\sigma_{RF}$"), y = TeX("$\\theta_{RF}$"),
        fill = "MAD", 
@@ -1983,6 +1985,50 @@ plot_grid(p_signature_fixed, p_signature_fitted, nrow = 1, align = "hv")
 ```
 
 ![](SLM_model_ver2_files/figure-gfm/unnamed-chunk-17-1.svg)<!-- -->
+
+``` r
+# non-signature plots (short or no mask durations)
+# plot
+p_nonsignature_fixed <- ggplot(data = signature_fixed, aes(x = spatial_rf_sd, y = visual_scale, 
+                                                             fill = mad_other )) + 
+  scale_x_log10() + scale_y_log10() + 
+  #geom_raster(interpolate = TRUE) + 
+  geom_tile() + 
+  coord_cartesian(expand = FALSE) + 
+  scale_fill_viridis_c(option = "mako", trans = "log10", 
+                       limits = c(min(signature_fitted$mad_other), 
+                                  max(signature_fixed$mad_other)) ) + 
+  SlomTheme() + theme(legend.position = "bottom") + 
+  labs(#x = "Spatial Gaussian SD parameter [dva]", y = "Temporal Gamma Scale parameter [ms]", 
+       x = TeX("$\\sigma_{RF}$"), y = TeX("$\\theta_{RF}$"),
+       fill = "MAD", 
+       #title = "Threshold difference (fixed sigma_E)"
+       title = TeX("$Threshold\\ difference\\ (fixed\\ \\sigma_{E})$")
+  )
+
+# compute the MAD for model predictions for fitted sigma_E
+p_nonsignature_fitted <- ggplot(data = signature_fitted, aes(x = spatial_rf_sd, y = visual_scale, 
+                                                             fill = mad_other )) + 
+  scale_x_log10() + scale_y_log10() + 
+  #geom_raster(interpolate = TRUE) + 
+  geom_tile() + 
+  coord_cartesian(expand = FALSE) + 
+  scale_fill_viridis_c(option = "mako", trans = "log10", 
+                       limits = c(min(signature_fitted$mad_other), 
+                                  max(signature_fixed$mad_other)) ) + 
+  SlomTheme() + theme(legend.position = "bottom") + 
+  labs(#x = "Spatial Gaussian SD parameter [dva]", y = "Temporal Gamma Scale parameter [ms]", 
+       x = TeX("$\\sigma_{RF}$"), y = TeX("$\\theta_{RF}$"),
+       fill = "MAD", 
+       #title = "Difference between thresholds at 50 and 200 ms mask duration (free sigma_{E})" 
+       title = TeX("$Threshold\\ difference\\ (free\\ \\sigma_{E})$")
+  )
+
+# again, combine and show
+plot_grid(p_nonsignature_fixed, p_nonsignature_fitted, nrow = 1, align = "hv")
+```
+
+![](SLM_model_ver2_files/figure-gfm/unnamed-chunk-17-2.svg)<!-- -->
 
 Now create a few snapshots from different grid points, to elucidate the
 goodness of fit.

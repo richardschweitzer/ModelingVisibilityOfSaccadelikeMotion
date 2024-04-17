@@ -1280,7 +1280,7 @@ plot_grid(p_fixed_e_SD, p_flexible_e_SD, p_best_e_SD, nrow = 1, align = "hv")
 ```
 
 Now determine threshold dissimilarity between amplitudes for 50 ms and 200 ms, which is the signature feature. 
-```{r, fig.width=12, fig.height=6}
+```{r, fig.width=10, fig.height=6}
 # mean absolute deviation function
 mad <- function(x, m) {
   m <- mean(x)
