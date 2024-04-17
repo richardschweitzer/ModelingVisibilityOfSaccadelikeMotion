@@ -131,10 +131,10 @@ visual_proc_func <- function(signal_x, signal_y, signal_t, # properties of the s
   blob_length_x <- ncol(blob)
   blob_length_y <- nrow(blob)
   if (debug_mode) {
-    print("Created Gaussian blob stimulus.")
+    print(paste("Created Gaussian blob stimulus with size", blob_length_y, blob_length_x))
   }
   # 1.2 get the dimensions for the cells of the matrix
-  spatial_pad_size <- round(4*gaussian_aperture_sd)
+  spatial_pad_size <- 4*gaussian_aperture_sd
   if (do_on_GPU) {
     # upscale when done on GPU?
     temporal_pad_size <- round(0.5*(temporal_duration+temporal_latency))
@@ -173,11 +173,15 @@ visual_proc_func <- function(signal_x, signal_y, signal_t, # properties of the s
   # 1.3 create large matrix of zeros according to the specified resolution
   mat_over_t <- array(data = 0, dim = c(length(mat_size_y), length(mat_size_x), length(mat_size_t)), 
                       dimnames = list(mat_size_y, mat_size_x, mat_size_t) )
+  if (debug_mode) {
+    print(paste("Allocated mat_over_t with size", paste(dim(mat_over_t), collapse = ",") )) 
+  }
   # 1.4 fill the matrix with the blob where the position is present in the signal
   for (sample_i in (1:n_samples)) {
     put_sample_x_here <- which.min(abs(mat_size_x - signal_x[sample_i]))
     put_sample_y_here <- which.min(abs(mat_size_y - signal_y[sample_i]))
     put_sample_t_here <- which.min(abs(mat_size_t - signal_t[sample_i]))
+    #print(paste(put_sample_x_here, put_sample_y_here, put_sample_t_here))
     mat_over_t[seq(put_sample_y_here-round(blob_length_y/2), 
                    put_sample_y_here-round(blob_length_y/2)+blob_length_y-1, 
                    by = 1), 
