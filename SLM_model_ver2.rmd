@@ -99,6 +99,7 @@ gridsearch_df <- expand.grid(list(rf_sd = gridsearch_rf_sd, sca = gridsearch_sca
 
 # make a plot of all the temporal response functions
 nice_colors <- scales::viridis_pal()(length(gridsearch_sca))
+all_resp_fun <- NULL
 for (sca_i in 1:length(gridsearch_sca)) {
   sca_now <- gridsearch_sca[sca_i]
   resp_fun <- gamma_fun(x_dur = 100, x_step = 0.01, 
@@ -107,6 +108,10 @@ for (sca_i in 1:length(gridsearch_sca)) {
                         make_symmetric = FALSE)
   resp_fun_time <- resp_fun[[2]]
   resp_fun <- resp_fun[[1]] / max(resp_fun[[1]])
+  all_resp_fun <- rbind(all_resp_fun, 
+                        data.table(resp_fun_time = resp_fun_time, 
+                                   resp_fun = resp_fun, 
+                                   sca = sca_now))
   if (sca_i == 1) {
     plot(resp_fun_time, (resp_fun), type = "l", col = nice_colors[sca_i], 
          ylim = c(0, max(resp_fun)), lwd = 2, 
@@ -117,8 +122,22 @@ for (sca_i in 1:length(gridsearch_sca)) {
 }
 legend(80, 1, legend=round(gridsearch_sca, 2),
            col=nice_colors, cex = 0.8, lty=1, lwd = 2, title="TRF Gamma scale")
+# pretty plot of temporal kernel
+p_all_resp_fun <- ggplot(data = all_resp_fun, aes(x = resp_fun_time, y = resp_fun, 
+                                                  color = sca, 
+                                                  group = factor(sca, 
+                                                                 levels = sort(unique(all_resp_fun$sca), 
+                                                                               decreasing = TRUE)) )) + 
+  geom_line(linewidth = 1.5) + 
+  SlomTheme() + 
+  labs(x = "Time [ms]", y = "Normalized temporal\nresponse function", 
+       color = "Gamma scale") + 
+  scale_color_viridis_c(option = "plasma", end = 0.9, trans = "log10", direction = -1) + 
+  theme(legend.position = "right")
+
 
 # ... and of the spatial response functions
+all_spat_fun <- NULL
 for (sd_i in rev(1:length(gridsearch_rf_sd))) {
   spatial_field_sd <- gridsearch_rf_sd[sd_i]
   #
@@ -132,6 +151,10 @@ for (sd_i in rev(1:length(gridsearch_rf_sd))) {
   spat_kernel <- 1/((spatial_field_sd^2)*2*pi) * exp(-(spat_meshlist$X^2+spat_meshlist$Y^2)/(2*spatial_field_sd^2))
   spat_kernel_x = spat_kernel[round(nrow(spat_kernel)/2), ]
   spat_kernel_x = spat_kernel_x / max(spat_kernel_x)
+  all_spat_fun <- rbind(all_spat_fun, 
+                        data.table(spat_fun_size = spat_fun_size, 
+                                   spat_kernel = spat_kernel_x, 
+                                   spatial_field_sd = spatial_field_sd))
   # plot
   if (sd_i == length(gridsearch_rf_sd)) {
     plot(spat_fun_size, (spat_kernel_x), type = "l", col = nice_colors[sd_i], 
@@ -143,6 +166,22 @@ for (sd_i in rev(1:length(gridsearch_rf_sd))) {
 }
 legend(5, 1, legend=round(gridsearch_rf_sd, 2),
            col=nice_colors, cex = 0.8, lty=1, lwd = 2, title="RF Gaussian SD")
+
+# pretty plot of spatial kernel
+p_all_spat_fun <- ggplot(data = all_spat_fun, aes(x = spat_fun_size, y = spat_kernel, 
+                                                  color = spatial_field_sd, 
+                                                  group = factor(spatial_field_sd, 
+                                                                 levels = sort(unique(all_spat_fun$spatial_field_sd), 
+                                                                               decreasing = TRUE)) )) + 
+  geom_line(linewidth = 1.5) + 
+  SlomTheme() + 
+  labs(x = "Space [dva]", y = "Normalized spatial\nresponse function", 
+       color = "Gaussian SD") + 
+  scale_color_viridis_c(option = "plasma", end = 0.9, trans = "log10", direction = -1) + 
+  theme(legend.position = "right")
+
+# combine
+plot_grid(p_all_resp_fun, p_all_spat_fun, nrow = 2, align = "hv") # 5 x 4.75
 
 ```
 
@@ -1333,7 +1372,7 @@ p_signature_fitted <- ggplot(data = signature_fitted, aes(x = spatial_rf_sd, y =
   )
 
 # combine and show
-plot_grid(p_signature_fixed, p_signature_fitted, nrow = 1, align = "hv")
+plot_grid(p_signature_fixed, p_signature_fitted, nrow = 1, align = "hv") # 11*2/3 x 4.75
 
 
 # non-signature plots (short or no mask durations)
@@ -1373,8 +1412,8 @@ p_nonsignature_fitted <- ggplot(data = signature_fitted, aes(x = spatial_rf_sd, 
        title = TeX("$Threshold\\ difference\\ (free\\ \\sigma_{E})$")
   )
 
-# again, combine and show
-plot_grid(p_nonsignature_fixed, p_nonsignature_fitted, nrow = 1, align = "hv")
+# combine and show the non-signature results
+plot_grid(p_nonsignature_fixed, p_nonsignature_fitted, nrow = 1, align = "hv") # 11 x 4.75
 
 ```
 

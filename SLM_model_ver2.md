@@ -74,7 +74,7 @@ library(torch)
 cuda_is_available() # check: is cuda available?
 ```
 
-    ## [1] TRUE
+    ## [1] FALSE
 
 ``` r
 # relevant custom functions
@@ -161,6 +161,7 @@ gridsearch_df <- expand.grid(list(rf_sd = gridsearch_rf_sd, sca = gridsearch_sca
 
 # make a plot of all the temporal response functions
 nice_colors <- scales::viridis_pal()(length(gridsearch_sca))
+all_resp_fun <- NULL
 for (sca_i in 1:length(gridsearch_sca)) {
   sca_now <- gridsearch_sca[sca_i]
   resp_fun <- gamma_fun(x_dur = 100, x_step = 0.01, 
@@ -169,6 +170,10 @@ for (sca_i in 1:length(gridsearch_sca)) {
                         make_symmetric = FALSE)
   resp_fun_time <- resp_fun[[2]]
   resp_fun <- resp_fun[[1]] / max(resp_fun[[1]])
+  all_resp_fun <- rbind(all_resp_fun, 
+                        data.table(resp_fun_time = resp_fun_time, 
+                                   resp_fun = resp_fun, 
+                                   sca = sca_now))
   if (sca_i == 1) {
     plot(resp_fun_time, (resp_fun), type = "l", col = nice_colors[sca_i], 
          ylim = c(0, max(resp_fun)), lwd = 2, 
@@ -184,7 +189,22 @@ legend(80, 1, legend=round(gridsearch_sca, 2),
 ![](SLM_model_ver2_files/figure-gfm/unnamed-chunk-4-1.svg)<!-- -->
 
 ``` r
+# pretty plot of temporal kernel
+p_all_resp_fun <- ggplot(data = all_resp_fun, aes(x = resp_fun_time, y = resp_fun, 
+                                                  color = sca, 
+                                                  group = factor(sca, 
+                                                                 levels = sort(unique(all_resp_fun$sca), 
+                                                                               decreasing = TRUE)) )) + 
+  geom_line(linewidth = 1.5) + 
+  SlomTheme() + 
+  labs(x = "Time [ms]", y = "Normalized temporal\nresponse function", 
+       color = "Gamma scale") + 
+  scale_color_viridis_c(option = "plasma", end = 0.9, trans = "log10", direction = -1) + 
+  theme(legend.position = "right")
+
+
 # ... and of the spatial response functions
+all_spat_fun <- NULL
 for (sd_i in rev(1:length(gridsearch_rf_sd))) {
   spatial_field_sd <- gridsearch_rf_sd[sd_i]
   #
@@ -198,6 +218,10 @@ for (sd_i in rev(1:length(gridsearch_rf_sd))) {
   spat_kernel <- 1/((spatial_field_sd^2)*2*pi) * exp(-(spat_meshlist$X^2+spat_meshlist$Y^2)/(2*spatial_field_sd^2))
   spat_kernel_x = spat_kernel[round(nrow(spat_kernel)/2), ]
   spat_kernel_x = spat_kernel_x / max(spat_kernel_x)
+  all_spat_fun <- rbind(all_spat_fun, 
+                        data.table(spat_fun_size = spat_fun_size, 
+                                   spat_kernel = spat_kernel_x, 
+                                   spatial_field_sd = spatial_field_sd))
   # plot
   if (sd_i == length(gridsearch_rf_sd)) {
     plot(spat_fun_size, (spat_kernel_x), type = "l", col = nice_colors[sd_i], 
@@ -212,6 +236,26 @@ legend(5, 1, legend=round(gridsearch_rf_sd, 2),
 ```
 
 ![](SLM_model_ver2_files/figure-gfm/unnamed-chunk-4-2.svg)<!-- -->
+
+``` r
+# pretty plot of spatial kernel
+p_all_spat_fun <- ggplot(data = all_spat_fun, aes(x = spat_fun_size, y = spat_kernel, 
+                                                  color = spatial_field_sd, 
+                                                  group = factor(spatial_field_sd, 
+                                                                 levels = sort(unique(all_spat_fun$spatial_field_sd), 
+                                                                               decreasing = TRUE)) )) + 
+  geom_line(linewidth = 1.5) + 
+  SlomTheme() + 
+  labs(x = "Space [dva]", y = "Normalized spatial\nresponse function", 
+       color = "Gaussian SD") + 
+  scale_color_viridis_c(option = "plasma", end = 0.9, trans = "log10", direction = -1) + 
+  theme(legend.position = "right")
+
+# combine
+plot_grid(p_all_resp_fun, p_all_spat_fun, nrow = 2, align = "hv") # 5 x 4.75
+```
+
+![](SLM_model_ver2_files/figure-gfm/unnamed-chunk-4-3.svg)<!-- -->
 
 # Preparation of the visual stimulus
 
@@ -285,13 +329,14 @@ unique_conditions <- unique_conditions[order(amp, velFac)]
 head(unique_conditions)
 ```
 
-    ##    condition_ID block trial amp    velFac      vel    dur iniPos curDir
-    ## 1:   4 0.25 1 1     1    43   4 0.2500000 178.7832 0.0338      1      1
-    ## 2:   4 0.33 1 1     1    49   4 0.3333333 178.7832 0.0338      1      1
-    ## 3:    4 0.5 1 1     3     8   4 0.5000000 178.7832 0.0338      1      1
-    ## 4:   4 0.67 1 1     1    84   4 0.6666667 178.7832 0.0338      1      1
-    ## 5:    4 0.8 1 1     2    61   4 0.8000000 178.7832 0.0338      1      1
-    ## 6:      4 1 1 1     3    42   4 1.0000000 178.7832 0.0338      1      1
+    ##    condition_ID block trial   amp    velFac      vel    dur iniPos curDir
+    ##          <char> <int> <int> <num>     <num>    <num>  <num>  <num>  <num>
+    ## 1:   4 0.25 1 1     1    43     4 0.2500000 178.7832 0.0338      1      1
+    ## 2:   4 0.33 1 1     1    49     4 0.3333333 178.7832 0.0338      1      1
+    ## 3:    4 0.5 1 1     3     8     4 0.5000000 178.7832 0.0338      1      1
+    ## 4:   4 0.67 1 1     1    84     4 0.6666667 178.7832 0.0338      1      1
+    ## 5:    4 0.8 1 1     2    61     4 0.8000000 178.7832 0.0338      1      1
+    ## 6:      4 1 1 1     3    42     4 1.0000000 178.7832 0.0338      1      1
 
 Now we’ll merge conditions with the respective stimulus trajectories.
 We’ll then transform the trajectories, specified in pixels, to
@@ -306,20 +351,22 @@ st <- st[order(amp, velFac, t)]
 head(st)
 ```
 
-    ##    block trial condition_ID amp velFac      vel    dur iniPos curDir   x   y
-    ## 1:     1    43   4 0.25 1 1   4   0.25 178.7832 0.0338      1      1 450 270
-    ## 2:     1    43   4 0.25 1 1   4   0.25 178.7832 0.0338      1      1 450 270
-    ## 3:     1    43   4 0.25 1 1   4   0.25 178.7832 0.0338      1      1 450 270
-    ## 4:     1    43   4 0.25 1 1   4   0.25 178.7832 0.0338      1      1 450 270
-    ## 5:     1    43   4 0.25 1 1   4   0.25 178.7832 0.0338      1      1 450 270
-    ## 6:     1    43   4 0.25 1 1   4   0.25 178.7832 0.0338      1      1 450 270
-    ##            t
-    ## 1: 0.0000000
-    ## 2: 0.6954408
-    ## 3: 1.3908816
-    ## 4: 2.0863223
-    ## 5: 2.7817631
-    ## 6: 3.4772039
+    ##    block trial condition_ID   amp velFac      vel    dur iniPos curDir     x
+    ##    <int> <int>       <char> <num>  <num>    <num>  <num>  <num>  <num> <num>
+    ## 1:     1    43   4 0.25 1 1     4   0.25 178.7832 0.0338      1      1   450
+    ## 2:     1    43   4 0.25 1 1     4   0.25 178.7832 0.0338      1      1   450
+    ## 3:     1    43   4 0.25 1 1     4   0.25 178.7832 0.0338      1      1   450
+    ## 4:     1    43   4 0.25 1 1     4   0.25 178.7832 0.0338      1      1   450
+    ## 5:     1    43   4 0.25 1 1     4   0.25 178.7832 0.0338      1      1   450
+    ## 6:     1    43   4 0.25 1 1     4   0.25 178.7832 0.0338      1      1   450
+    ##        y         t
+    ##    <num>     <num>
+    ## 1:   270 0.0000000
+    ## 2:   270 0.6954408
+    ## 3:   270 1.3908816
+    ## 4:   270 2.0863223
+    ## 5:   270 2.7817631
+    ## 6:   270 3.4772039
 
 ``` r
 table(st$amp, round(st$velFac, 2)) # make sure we have all conditions
@@ -402,52 +449,54 @@ n_samples[ , dur_2 := n_samples*scr_fd/1000]
 n_samples
 ```
 
-    ##     amp    velFac n_samples n_samples_all      vel    dur   abs_vel    abs_dur
-    ##  1:   4 0.2500000       118           698 178.7832 0.0338  44.69580 0.08949386
-    ##  2:   4 0.3333333        90           668 178.7832 0.0338  59.59440 0.06712040
-    ##  3:   4 0.5000000        60           638 178.7832 0.0338  89.39160 0.04474693
-    ##  4:   4 0.6666667        45           623 178.7832 0.0338 119.18881 0.03356020
-    ##  5:   4 0.8000000        37           615 178.7832 0.0338 143.02657 0.02796683
-    ##  6:   4 1.0000000        30           608 178.7832 0.0338 178.78321 0.02237347
-    ##  7:   4 1.2500000        24           602 178.7832 0.0338 223.47901 0.01789877
-    ##  8:   8 0.2500000       156           734 286.5366 0.0446  71.63414 0.11167859
-    ##  9:   8 0.3333333       117           695 286.5366 0.0446  95.51219 0.08375895
-    ## 10:   8 0.5000000        78           656 286.5366 0.0446 143.26828 0.05583930
-    ## 11:   8 0.6666667        59           637 286.5366 0.0446 191.02437 0.04187947
-    ## 12:   8 0.8000000        49           627 286.5366 0.0446 229.22925 0.03489956
-    ## 13:   8 1.0000000        39           617 286.5366 0.0446 286.53656 0.02791965
-    ## 14:   8 1.2500000        31           609 286.5366 0.0446 358.17070 0.02233572
-    ## 15:  12 0.2500000       195           773 351.4799 0.0554  87.86998 0.13656541
-    ## 16:  12 0.3333333       146           724 351.4799 0.0554 117.15998 0.10242405
-    ## 17:  12 0.5000000        98           676 351.4799 0.0554 175.73997 0.06828270
-    ## 18:  12 0.6666667        73           651 351.4799 0.0554 234.31996 0.05121203
-    ## 19:  12 0.8000000        61           639 351.4799 0.0554 281.18395 0.04267669
-    ## 20:  12 1.0000000        49           627 351.4799 0.0554 351.47993 0.03414135
-    ## 21:  12 1.2500000        39           617 351.4799 0.0554 439.34992 0.02731308
-    ##     amp    velFac n_samples n_samples_all      vel    dur   abs_vel    abs_dur
-    ##          dur_2
-    ##  1: 0.08194444
-    ##  2: 0.06250000
-    ##  3: 0.04166667
-    ##  4: 0.03125000
-    ##  5: 0.02569444
-    ##  6: 0.02083333
-    ##  7: 0.01666667
-    ##  8: 0.10833333
-    ##  9: 0.08125000
-    ## 10: 0.05416667
-    ## 11: 0.04097222
-    ## 12: 0.03402778
-    ## 13: 0.02708333
-    ## 14: 0.02152778
-    ## 15: 0.13541667
-    ## 16: 0.10138889
-    ## 17: 0.06805556
-    ## 18: 0.05069444
-    ## 19: 0.04236111
-    ## 20: 0.03402778
-    ## 21: 0.02708333
-    ##          dur_2
+    ##       amp    velFac n_samples n_samples_all      vel    dur   abs_vel
+    ##     <num>     <num>     <int>         <int>    <num>  <num>     <num>
+    ##  1:     4 0.2500000       118           698 178.7832 0.0338  44.69580
+    ##  2:     4 0.3333333        90           668 178.7832 0.0338  59.59440
+    ##  3:     4 0.5000000        60           638 178.7832 0.0338  89.39160
+    ##  4:     4 0.6666667        45           623 178.7832 0.0338 119.18881
+    ##  5:     4 0.8000000        37           615 178.7832 0.0338 143.02657
+    ##  6:     4 1.0000000        30           608 178.7832 0.0338 178.78321
+    ##  7:     4 1.2500000        24           602 178.7832 0.0338 223.47901
+    ##  8:     8 0.2500000       156           734 286.5366 0.0446  71.63414
+    ##  9:     8 0.3333333       117           695 286.5366 0.0446  95.51219
+    ## 10:     8 0.5000000        78           656 286.5366 0.0446 143.26828
+    ## 11:     8 0.6666667        59           637 286.5366 0.0446 191.02437
+    ## 12:     8 0.8000000        49           627 286.5366 0.0446 229.22925
+    ## 13:     8 1.0000000        39           617 286.5366 0.0446 286.53656
+    ## 14:     8 1.2500000        31           609 286.5366 0.0446 358.17070
+    ## 15:    12 0.2500000       195           773 351.4799 0.0554  87.86998
+    ## 16:    12 0.3333333       146           724 351.4799 0.0554 117.15998
+    ## 17:    12 0.5000000        98           676 351.4799 0.0554 175.73997
+    ## 18:    12 0.6666667        73           651 351.4799 0.0554 234.31996
+    ## 19:    12 0.8000000        61           639 351.4799 0.0554 281.18395
+    ## 20:    12 1.0000000        49           627 351.4799 0.0554 351.47993
+    ## 21:    12 1.2500000        39           617 351.4799 0.0554 439.34992
+    ##       amp    velFac n_samples n_samples_all      vel    dur   abs_vel
+    ##        abs_dur      dur_2
+    ##          <num>      <num>
+    ##  1: 0.08949386 0.08194444
+    ##  2: 0.06712040 0.06250000
+    ##  3: 0.04474693 0.04166667
+    ##  4: 0.03356020 0.03125000
+    ##  5: 0.02796683 0.02569444
+    ##  6: 0.02237347 0.02083333
+    ##  7: 0.01789877 0.01666667
+    ##  8: 0.11167859 0.10833333
+    ##  9: 0.08375895 0.08125000
+    ## 10: 0.05583930 0.05416667
+    ## 11: 0.04187947 0.04097222
+    ## 12: 0.03489956 0.03402778
+    ## 13: 0.02791965 0.02708333
+    ## 14: 0.02233572 0.02152778
+    ## 15: 0.13656541 0.13541667
+    ## 16: 0.10242405 0.10138889
+    ## 17: 0.06828270 0.06805556
+    ## 18: 0.05121203 0.05069444
+    ## 19: 0.04267669 0.04236111
+    ## 20: 0.03414135 0.03402778
+    ## 21: 0.02731308 0.02708333
+    ##        abs_dur      dur_2
 
 ``` r
 # plot duration and velocity of stimulus for all conditions
@@ -527,329 +576,491 @@ for (grid_i in 1:nrow(gridsearch_df)) {
 }
 ```
 
-    ##    rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1:  0.05   1  130.1911             195.2867 39.05734   0.9174312
+    ##    rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##    <num> <num>     <num>                <num>    <num>       <num>
+    ## 1:  0.05     1  130.1911             195.2867 39.05734   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##         rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1: 0.08891397   1  118.6997             178.0495 35.60991   0.9174312
+    ##         rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##         <num> <num>     <num>                <num>    <num>       <num>
+    ## 1: 0.08891397     1  118.6997             178.0495 35.60991   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##        rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1: 0.1581139   1    101.24             151.8599 30.37199   0.9174312
+    ##        rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##        <num> <num>     <num>                <num>    <num>       <num>
+    ## 1: 0.1581139     1    101.24             151.8599 30.37199   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##        rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1: 0.2811707   1   68.2354             102.3531 20.47062   0.9174312
+    ##        rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##        <num> <num>     <num>                <num>    <num>       <num>
+    ## 1: 0.2811707     1   68.2354             102.3531 20.47062   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##    rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1:   0.5   1  34.29886             51.44829 10.28966   0.9174312
+    ##    rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##    <num> <num>     <num>                <num>    <num>       <num>
+    ## 1:   0.5     1  34.29886             51.44829 10.28966   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##        rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1: 0.8891397   1  13.22794              19.8419 3.968381   0.9174312
+    ##        rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##        <num> <num>     <num>                <num>    <num>       <num>
+    ## 1: 0.8891397     1  13.22794              19.8419 3.968381   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##       rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1: 1.581139   1  4.490294             6.735441 1.347088   0.9174312
+    ##       rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##       <num> <num>     <num>                <num>    <num>       <num>
+    ## 1: 1.581139     1  4.490294             6.735441 1.347088   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##       rf_sd sca total_max total_max_plus_noise         C total_max_O
-    ## 1: 2.811707   1  1.454839             2.182259 0.4364517   0.9174312
+    ##       rf_sd   sca total_max total_max_plus_noise         C total_max_O
+    ##       <num> <num>     <num>                <num>     <num>       <num>
+    ## 1: 2.811707     1  1.454839             2.182259 0.4364517   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##    rf_sd sca total_max total_max_plus_noise         C total_max_O
-    ## 1:     5   1 0.4636443            0.6954664 0.1390933   0.9174312
+    ##    rf_sd   sca total_max total_max_plus_noise         C total_max_O
+    ##    <num> <num>     <num>                <num>     <num>       <num>
+    ## 1:     5     1 0.4636444            0.6954665 0.1390933   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##    <num>    <num>     <num>                <num>    <num>       <num>
     ## 1:  0.05 1.778279  138.6324             207.9486 41.58972   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##         rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##         <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.08891397 1.778279  126.3959             189.5938 37.91876   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##        <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.1581139 1.778279  107.8041             161.7062 32.34123   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##        <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.2811707 1.778279  72.65961             108.9894 21.79788   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##    <num>    <num>     <num>                <num>    <num>       <num>
     ## 1:   0.5 1.778279  36.52271             54.78407 10.95681   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise       C total_max_O
+    ##        <num>    <num>     <num>                <num>   <num>       <num>
     ## 1: 0.8891397 1.778279   14.0856              21.1284 4.22568   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##       rf_sd      sca total_max total_max_plus_noise       C total_max_O
+    ##       <num>    <num>     <num>                <num>   <num>       <num>
     ## 1: 1.581139 1.778279  4.781433             7.172149 1.43443   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##       rf_sd      sca total_max total_max_plus_noise         C total_max_O
+    ##       <num>    <num>     <num>                <num>     <num>       <num>
     ## 1: 2.811707 1.778279  1.549167             2.323751 0.4647501   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise         C total_max_O
-    ## 1:     5 1.778279 0.4937057            0.7405586 0.1481117   0.9174312
+    ##    <num>    <num>     <num>                <num>     <num>       <num>
+    ## 1:     5 1.778279 0.4937058            0.7405587 0.1481117   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##    <num>    <num>     <num>                <num>    <num>       <num>
     ## 1:  0.05 3.162278  142.1896             213.2844 42.65689   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##         rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##         <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.08891397 3.162278  129.6391             194.4586 38.89173   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##        <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.1581139 3.162278  110.5703             165.8554 33.17109   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise       C total_max_O
+    ##        <num>    <num>     <num>                <num>   <num>       <num>
     ## 1: 0.2811707 3.162278  74.52401              111.786 22.3572   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##    <num>    <num>     <num>                <num>    <num>       <num>
     ## 1:   0.5 3.162278  37.45987              56.1898 11.23796   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##        <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.8891397 3.162278  14.44703             21.67054 4.334108   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##       rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##       <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 1.581139 3.162278  4.904121             7.356182 1.471236   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##       rf_sd      sca total_max total_max_plus_noise         C total_max_O
+    ##       <num>    <num>     <num>                <num>     <num>       <num>
     ## 1: 2.811707 3.162278  1.588918             2.383377 0.4766754   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise         C total_max_O
+    ##    <num>    <num>     <num>                <num>     <num>       <num>
     ## 1:     5 3.162278  0.506374             0.759561 0.1519122   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##    <num>    <num>     <num>                <num>    <num>       <num>
     ## 1:  0.05 5.623413  143.6462             215.4694 43.09387   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##         rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##         <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.08891397 5.623413  130.9671             196.4507 39.29014   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise       C total_max_O
+    ##        <num>    <num>     <num>                <num>   <num>       <num>
     ## 1: 0.1581139 5.623413   111.703             167.5545 33.5109   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##        <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.2811707 5.623413  75.28745             112.9312 22.58623   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##    <num>    <num>     <num>                <num>    <num>       <num>
     ## 1:   0.5 5.623413  37.84361             56.76542 11.35308   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##        <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.8891397 5.623413  14.59503             21.89254 4.378509   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##       rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##       <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 1.581139 5.623413  4.954361             7.431541 1.486308   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##       rf_sd      sca total_max total_max_plus_noise         C total_max_O
+    ##       <num>    <num>     <num>                <num>     <num>       <num>
     ## 1: 2.811707 5.623413  1.605195             2.407792 0.4815585   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise         C total_max_O
-    ## 1:     5 5.623413 0.5115614            0.7673421 0.1534684   0.9174312
+    ##    <num>    <num>     <num>                <num>     <num>       <num>
+    ## 1:     5 5.623413 0.5115615            0.7673422 0.1534684   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##    rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1:  0.05  10  144.2347              216.352 43.27041   0.9174312
+    ##    rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##    <num> <num>     <num>                <num>    <num>       <num>
+    ## 1:  0.05    10  144.2347              216.352 43.27041   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##         rf_sd sca total_max total_max_plus_noise       C total_max_O
-    ## 1: 0.08891397  10  131.5037             197.2555 39.4511   0.9174312
+    ##         rf_sd   sca total_max total_max_plus_noise       C total_max_O
+    ##         <num> <num>     <num>                <num>   <num>       <num>
+    ## 1: 0.08891397    10  131.5037             197.2555 39.4511   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##        rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1: 0.1581139  10  112.1606             168.2409 33.64818   0.9174312
+    ##        rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##        <num> <num>     <num>                <num>    <num>       <num>
+    ## 1: 0.1581139    10  112.1606             168.2409 33.64818   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##        rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1: 0.2811707  10  75.59588             113.3938 22.67876   0.9174312
+    ##        rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##        <num> <num>     <num>                <num>    <num>       <num>
+    ## 1: 0.2811707    10  75.59588             113.3938 22.67876   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##    rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1:   0.5  10  37.99863             56.99795 11.39959   0.9174312
+    ##    rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##    <num> <num>     <num>                <num>    <num>       <num>
+    ## 1:   0.5    10  37.99863             56.99795 11.39959   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##        rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1: 0.8891397  10  14.65482             21.98222 4.396445   0.9174312
+    ##        rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##        <num> <num>     <num>                <num>    <num>       <num>
+    ## 1: 0.8891397    10  14.65482             21.98222 4.396445   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##       rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1: 1.581139  10  4.974656             7.461984 1.492397   0.9174312
+    ##       rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##       <num> <num>     <num>                <num>    <num>       <num>
+    ## 1: 1.581139    10  4.974656             7.461984 1.492397   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##       rf_sd sca total_max total_max_plus_noise         C total_max_O
-    ## 1: 2.811707  10  1.611771             2.417656 0.4835312   0.9174312
+    ##       rf_sd   sca total_max total_max_plus_noise         C total_max_O
+    ##       <num> <num>     <num>                <num>     <num>       <num>
+    ## 1: 2.811707    10  1.611771             2.417656 0.4835312   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##    rf_sd sca total_max total_max_plus_noise         C total_max_O
-    ## 1:     5  10 0.5136569            0.7704854 0.1540971   0.9174312
+    ##    rf_sd   sca total_max total_max_plus_noise         C total_max_O
+    ##    <num> <num>     <num>                <num>     <num>       <num>
+    ## 1:     5    10  0.513657            0.7704855 0.1540971   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##    <num>    <num>     <num>                <num>    <num>       <num>
     ## 1:  0.05 17.78279  144.4642             216.6964 43.33927   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##         rf_sd      sca total_max total_max_plus_noise       C total_max_O
+    ##         <num>    <num>     <num>                <num>   <num>       <num>
     ## 1: 0.08891397 17.78279   131.713             197.5695 39.5139   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##        <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.1581139 17.78279  112.3393             168.5089 33.70178   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##        <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.2811707 17.78279  75.71651             113.5748 22.71495   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##    <num>    <num>     <num>                <num>    <num>       <num>
     ## 1:   0.5 17.78279  38.05958             57.08937 11.41787   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##        <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.8891397 17.78279  14.67847              22.0177 4.403541   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##       rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##       <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 1.581139 17.78279  4.982736             7.474103 1.494821   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##       rf_sd      sca total_max total_max_plus_noise         C total_max_O
+    ##       <num>    <num>     <num>                <num>     <num>       <num>
     ## 1: 2.811707 17.78279    1.6144               2.4216 0.4843199   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise        C total_max_O
-    ## 1:     5 17.78279 0.5144965            0.7717448 0.154349   0.9174312
+    ##    <num>    <num>     <num>                <num>    <num>       <num>
+    ## 1:     5 17.78279 0.5144966            0.7717449 0.154349   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##    <num>    <num>     <num>                <num>    <num>       <num>
     ## 1:  0.05 31.62278  143.7874             215.6811 43.13622   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##         rf_sd      sca total_max total_max_plus_noise     C total_max_O
+    ##         <num>    <num>     <num>                <num> <num>       <num>
     ## 1: 0.08891397 31.62278     131.1               196.65 39.33   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##        <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.1581139 31.62278  111.8263             167.7394 33.54788   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##        <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.2811707 31.62278  75.38548             113.0782 22.61564   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##    <num>    <num>     <num>                <num>    <num>       <num>
     ## 1:   0.5 31.62278  37.91508             56.87262 11.37452   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##        <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.8891397 31.62278  14.63609             21.95413 4.390826   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##       rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##       <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 1.581139 31.62278  4.973997             7.460995 1.492199   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##       rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##       <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 2.811707 31.62278   1.61329             2.419935 0.483987   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise         C total_max_O
-    ## 1:     5 31.62278 0.5144547             0.771682 0.1543364   0.9174312
+    ##    <num>    <num>     <num>                <num>     <num>       <num>
+    ## 1:     5 31.62278 0.5144548            0.7716822 0.1543364   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##    <num>    <num>     <num>                <num>    <num>       <num>
     ## 1:  0.05 56.23413  134.3855             201.5782 40.31564   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##         rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##         <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.08891397 56.23413  122.5537             183.8306 36.76612   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##        <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.1581139 56.23413  104.5996             156.8994 31.37987   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##        <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.2811707 56.23413  70.61054             105.9158 21.18316   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##    <num>    <num>     <num>                <num>    <num>       <num>
     ## 1:   0.5 56.23413  35.66442             53.49664 10.69933   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##        rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##        <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 0.8891397 56.23413  13.87043             20.80564 4.161128   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##       rf_sd      sca total_max total_max_plus_noise        C total_max_O
+    ##       <num>    <num>     <num>                <num>    <num>       <num>
     ## 1: 1.581139 56.23413  4.772585             7.158877 1.431775   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##       rf_sd      sca total_max total_max_plus_noise         C total_max_O
+    ##       <num>    <num>     <num>                <num>     <num>       <num>
     ## 1: 2.811707 56.23413  1.567478             2.351218 0.4702435   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise         C total_max_O
+    ##    <num>    <num>     <num>                <num>     <num>       <num>
     ## 1:     5 56.23413 0.5037515            0.7556272 0.1511254   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##    rf_sd sca total_max total_max_plus_noise       C total_max_O
-    ## 1:  0.05 100  105.7707              158.656 31.7312   0.9174312
+    ##    rf_sd   sca total_max total_max_plus_noise       C total_max_O
+    ##    <num> <num>     <num>                <num>   <num>       <num>
+    ## 1:  0.05   100  105.7707              158.656 31.7312   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##         rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1: 0.08891397 100  96.49287             144.7393 28.94786   0.9174312
+    ##         rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##         <num> <num>     <num>                <num>    <num>       <num>
+    ## 1: 0.08891397   100  96.49287             144.7393 28.94786   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##        rf_sd sca total_max total_max_plus_noise       C total_max_O
-    ## 1: 0.1581139 100  82.44066              123.661 24.7322   0.9174312
+    ##        rf_sd   sca total_max total_max_plus_noise       C total_max_O
+    ##        <num> <num>     <num>                <num>   <num>       <num>
+    ## 1: 0.1581139   100  82.44066              123.661 24.7322   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##        rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1: 0.2811707 100  55.93621             83.90432 16.78086   0.9174312
+    ##        rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##        <num> <num>     <num>                <num>    <num>       <num>
+    ## 1: 0.2811707   100  55.93621             83.90432 16.78086   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##    rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1:   0.5 100  28.38761             42.58142 8.516283   0.9174312
+    ##    rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##    <num> <num>     <num>                <num>    <num>       <num>
+    ## 1:   0.5   100  28.38761             42.58142 8.516283   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##        rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1: 0.8891397 100  11.19944             16.79915 3.359831   0.9174312
+    ##        rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##        <num> <num>     <num>                <num>    <num>       <num>
+    ## 1: 0.8891397   100  11.19944             16.79915 3.359831   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##       rf_sd sca total_max total_max_plus_noise       C total_max_O
-    ## 1: 1.581139 100  3.961934             5.942901 1.18858   0.9174312
+    ##       rf_sd   sca total_max total_max_plus_noise       C total_max_O
+    ##       <num> <num>     <num>                <num>   <num>       <num>
+    ## 1: 1.581139   100  3.961934             5.942901 1.18858   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##       rf_sd sca total_max total_max_plus_noise        C total_max_O
-    ## 1: 2.811707 100  1.344923             2.017385 0.403477   0.9174312
+    ##       rf_sd   sca total_max total_max_plus_noise        C total_max_O
+    ##       <num> <num>     <num>                <num>    <num>       <num>
+    ## 1: 2.811707   100  1.344923             2.017385 0.403477   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
-    ##    rf_sd sca total_max total_max_plus_noise         C total_max_O
-    ## 1:     5 100 0.4412947             0.661942 0.1323884   0.9174312
+    ##    rf_sd   sca total_max total_max_plus_noise         C total_max_O
+    ##    <num> <num>     <num>                <num>     <num>       <num>
+    ## 1:     5   100 0.4412947             0.661942 0.1323884   0.9174312
     ##    total_max_plus_noise_O
+    ##                     <num>
     ## 1:              0.9615385
 
 ``` r
@@ -1431,45 +1642,45 @@ summary(glm_sim_p_correct_nothres_all_2)
     ## 
     ## Scaled residuals: 
     ##     Min      1Q  Median      3Q     Max 
-    ## -3.6453 -0.1160  0.0033  0.2720  3.6828 
+    ## -3.6447 -0.1159  0.0033  0.2718  3.6817 
     ## 
     ## Random effects:
     ##  Groups Name         Variance Std.Dev. Corr                               
-    ##  cond   (Intercept)  0.589325 0.76768                                     
-    ##         velFac       2.630649 1.62193   0.71                              
-    ##         mask_time_f1 0.364229 0.60351  -0.49 -0.64                        
-    ##         mask_time_f2 0.236090 0.48589  -0.72 -0.49  0.75                  
-    ##         mask_time_f3 0.096650 0.31089   0.00  0.38 -0.83 -0.43            
-    ##         amp_f1       0.172060 0.41480  -0.82 -0.90  0.59  0.61 -0.24      
-    ##         amp_f2       0.004553 0.06748   0.77  0.94 -0.58 -0.44  0.28 -0.96
+    ##  cond   (Intercept)  0.589440 0.76775                                     
+    ##         velFac       2.630447 1.62187   0.71                              
+    ##         mask_time_f1 0.363560 0.60296  -0.49 -0.64                        
+    ##         mask_time_f2 0.235862 0.48566  -0.72 -0.49  0.75                  
+    ##         mask_time_f3 0.096307 0.31033   0.00  0.38 -0.83 -0.43            
+    ##         amp_f1       0.172045 0.41478  -0.82 -0.90  0.59  0.61 -0.24      
+    ##         amp_f2       0.004546 0.06743   0.77  0.94 -0.58 -0.44  0.28 -0.96
     ## Number of obs: 6804, groups:  cond, 81
     ## 
     ## Fixed effects:
     ##                             Estimate Std. Error z value Pr(>|z|)    
-    ## (Intercept)                 2.868312   0.089413  32.080  < 2e-16 ***
-    ## velFac                     -3.420497   0.182691 -18.723  < 2e-16 ***
-    ## mask_time_f1                0.030062   0.076807   0.391  0.69551    
-    ## mask_time_f2               -0.133122   0.061557  -2.163  0.03057 *  
-    ## mask_time_f3               -0.046710   0.045287  -1.031  0.30234    
-    ## amp_f1                     -0.394127   0.051509  -7.652 1.99e-14 ***
-    ## amp_f2                      0.006084   0.024471   0.249  0.80365    
-    ## velFac:mask_time_f1         0.771352   0.040387  19.099  < 2e-16 ***
-    ## velFac:mask_time_f2         0.386827   0.033695  11.480  < 2e-16 ***
-    ## velFac:mask_time_f3        -0.259333   0.034963  -7.417 1.19e-13 ***
-    ## velFac:amp_f1               0.428447   0.026171  16.371  < 2e-16 ***
-    ## velFac:amp_f2              -0.052703   0.027120  -1.943  0.05198 .  
-    ## mask_time_f1:amp_f1         0.118762   0.025662   4.628 3.69e-06 ***
-    ## mask_time_f2:amp_f1         0.119508   0.021874   5.464 4.67e-08 ***
-    ## mask_time_f3:amp_f1        -0.040822   0.020123  -2.029  0.04250 *  
-    ## mask_time_f1:amp_f2        -0.014220   0.024843  -0.572  0.56705    
-    ## mask_time_f2:amp_f2        -0.029050   0.021787  -1.333  0.18242    
-    ## mask_time_f3:amp_f2         0.008895   0.020654   0.431  0.66672    
-    ## velFac:mask_time_f1:amp_f1 -0.016376   0.029768  -0.550  0.58222    
-    ## velFac:mask_time_f2:amp_f1 -0.075831   0.025556  -2.967  0.00301 ** 
-    ## velFac:mask_time_f3:amp_f1 -0.018082   0.025288  -0.715  0.47459    
-    ## velFac:mask_time_f1:amp_f2  0.004571   0.029292   0.156  0.87598    
-    ## velFac:mask_time_f2:amp_f2  0.024961   0.025700   0.971  0.33143    
-    ## velFac:mask_time_f3:amp_f2 -0.002218   0.026033  -0.085  0.93211    
+    ## (Intercept)                 2.868785   0.089415  32.084  < 2e-16 ***
+    ## velFac                     -3.419003   0.182655 -18.718  < 2e-16 ***
+    ## mask_time_f1                0.029953   0.076755   0.390  0.69636    
+    ## mask_time_f2               -0.133026   0.061532  -2.162  0.03063 *  
+    ## mask_time_f3               -0.047284   0.045238  -1.045  0.29592    
+    ## amp_f1                     -0.394352   0.051506  -7.656 1.91e-14 ***
+    ## amp_f2                      0.006017   0.024478   0.246  0.80581    
+    ## velFac:mask_time_f1         0.771104   0.040390  19.091  < 2e-16 ***
+    ## velFac:mask_time_f2         0.386631   0.033697  11.474  < 2e-16 ***
+    ## velFac:mask_time_f3        -0.258534   0.034954  -7.396 1.40e-13 ***
+    ## velFac:amp_f1               0.428286   0.026170  16.365  < 2e-16 ***
+    ## velFac:amp_f2              -0.052515   0.027118  -1.936  0.05281 .  
+    ## mask_time_f1:amp_f1         0.118675   0.025662   4.624 3.76e-06 ***
+    ## mask_time_f2:amp_f1         0.119418   0.021874   5.459 4.78e-08 ***
+    ## mask_time_f3:amp_f1        -0.040817   0.020122  -2.028  0.04251 *  
+    ## mask_time_f1:amp_f2        -0.014269   0.024842  -0.574  0.56570    
+    ## mask_time_f2:amp_f2        -0.028902   0.021787  -1.327  0.18466    
+    ## mask_time_f3:amp_f2         0.008791   0.020652   0.426  0.67033    
+    ## velFac:mask_time_f1:amp_f1 -0.016203   0.029767  -0.544  0.58622    
+    ## velFac:mask_time_f2:amp_f1 -0.075743   0.025557  -2.964  0.00304 ** 
+    ## velFac:mask_time_f3:amp_f1 -0.018053   0.025286  -0.714  0.47525    
+    ## velFac:mask_time_f1:amp_f2  0.004582   0.029290   0.156  0.87568    
+    ## velFac:mask_time_f2:amp_f2  0.024758   0.025700   0.963  0.33538    
+    ## velFac:mask_time_f3:amp_f2 -0.002055   0.026030  -0.079  0.93706    
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
@@ -1981,7 +2192,7 @@ p_signature_fitted <- ggplot(data = signature_fitted, aes(x = spatial_rf_sd, y =
   )
 
 # combine and show
-plot_grid(p_signature_fixed, p_signature_fitted, nrow = 1, align = "hv")
+plot_grid(p_signature_fixed, p_signature_fitted, nrow = 1, align = "hv") # 11*2/3 x 4.75
 ```
 
 ![](SLM_model_ver2_files/figure-gfm/unnamed-chunk-17-1.svg)<!-- -->
@@ -2024,8 +2235,8 @@ p_nonsignature_fitted <- ggplot(data = signature_fitted, aes(x = spatial_rf_sd, 
        title = TeX("$Threshold\\ difference\\ (free\\ \\sigma_{E})$")
   )
 
-# again, combine and show
-plot_grid(p_nonsignature_fixed, p_nonsignature_fitted, nrow = 1, align = "hv")
+# combine and show the non-signature results
+plot_grid(p_nonsignature_fixed, p_nonsignature_fitted, nrow = 1, align = "hv") # 11 x 4.75
 ```
 
 ![](SLM_model_ver2_files/figure-gfm/unnamed-chunk-17-2.svg)<!-- -->
