@@ -74,7 +74,7 @@ library(torch)
 cuda_is_available() # check: is cuda available?
 ```
 
-    ## [1] FALSE
+    ## [1] TRUE
 
 ``` r
 # relevant custom functions
@@ -626,7 +626,7 @@ for (grid_i in 1:nrow(gridsearch_df)) {
     ## 1:              0.9615385
     ##    rf_sd   sca total_max total_max_plus_noise         C total_max_O
     ##    <num> <num>     <num>                <num>     <num>       <num>
-    ## 1:     5     1 0.4636444            0.6954665 0.1390933   0.9174312
+    ## 1:     5     1 0.4636443            0.6954664 0.1390933   0.9174312
     ##    total_max_plus_noise_O
     ##                     <num>
     ## 1:              0.9615385
@@ -680,7 +680,7 @@ for (grid_i in 1:nrow(gridsearch_df)) {
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise         C total_max_O
     ##    <num>    <num>     <num>                <num>     <num>       <num>
-    ## 1:     5 1.778279 0.4937058            0.7405587 0.1481117   0.9174312
+    ## 1:     5 1.778279 0.4937057            0.7405586 0.1481117   0.9174312
     ##    total_max_plus_noise_O
     ##                     <num>
     ## 1:              0.9615385
@@ -788,7 +788,7 @@ for (grid_i in 1:nrow(gridsearch_df)) {
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise         C total_max_O
     ##    <num>    <num>     <num>                <num>     <num>       <num>
-    ## 1:     5 5.623413 0.5115615            0.7673422 0.1534684   0.9174312
+    ## 1:     5 5.623413 0.5115614            0.7673421 0.1534684   0.9174312
     ##    total_max_plus_noise_O
     ##                     <num>
     ## 1:              0.9615385
@@ -842,7 +842,7 @@ for (grid_i in 1:nrow(gridsearch_df)) {
     ## 1:              0.9615385
     ##    rf_sd   sca total_max total_max_plus_noise         C total_max_O
     ##    <num> <num>     <num>                <num>     <num>       <num>
-    ## 1:     5    10  0.513657            0.7704855 0.1540971   0.9174312
+    ## 1:     5    10 0.5136569            0.7704854 0.1540971   0.9174312
     ##    total_max_plus_noise_O
     ##                     <num>
     ## 1:              0.9615385
@@ -896,7 +896,7 @@ for (grid_i in 1:nrow(gridsearch_df)) {
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise        C total_max_O
     ##    <num>    <num>     <num>                <num>    <num>       <num>
-    ## 1:     5 17.78279 0.5144966            0.7717449 0.154349   0.9174312
+    ## 1:     5 17.78279 0.5144965            0.7717448 0.154349   0.9174312
     ##    total_max_plus_noise_O
     ##                     <num>
     ## 1:              0.9615385
@@ -950,7 +950,7 @@ for (grid_i in 1:nrow(gridsearch_df)) {
     ## 1:              0.9615385
     ##    rf_sd      sca total_max total_max_plus_noise         C total_max_O
     ##    <num>    <num>     <num>                <num>     <num>       <num>
-    ## 1:     5 31.62278 0.5144548            0.7716822 0.1543364   0.9174312
+    ## 1:     5 31.62278 0.5144547             0.771682 0.1543364   0.9174312
     ##    total_max_plus_noise_O
     ##                     <num>
     ## 1:              0.9615385
@@ -1642,45 +1642,45 @@ summary(glm_sim_p_correct_nothres_all_2)
     ## 
     ## Scaled residuals: 
     ##     Min      1Q  Median      3Q     Max 
-    ## -3.6447 -0.1159  0.0033  0.2718  3.6817 
+    ## -3.6455 -0.1158  0.0034  0.2717  3.6816 
     ## 
     ## Random effects:
     ##  Groups Name         Variance Std.Dev. Corr                               
-    ##  cond   (Intercept)  0.589440 0.76775                                     
-    ##         velFac       2.630447 1.62187   0.71                              
-    ##         mask_time_f1 0.363560 0.60296  -0.49 -0.64                        
-    ##         mask_time_f2 0.235862 0.48566  -0.72 -0.49  0.75                  
-    ##         mask_time_f3 0.096307 0.31033   0.00  0.38 -0.83 -0.43            
-    ##         amp_f1       0.172045 0.41478  -0.82 -0.90  0.59  0.61 -0.24      
-    ##         amp_f2       0.004546 0.06743   0.77  0.94 -0.58 -0.44  0.28 -0.96
+    ##  cond   (Intercept)  0.590780 0.76862                                     
+    ##         velFac       2.638177 1.62425   0.71                              
+    ##         mask_time_f1 0.364617 0.60384  -0.49 -0.64                        
+    ##         mask_time_f2 0.236163 0.48597  -0.72 -0.49  0.75                  
+    ##         mask_time_f3 0.096583 0.31078   0.00  0.38 -0.83 -0.43            
+    ##         amp_f1       0.172580 0.41543  -0.82 -0.90  0.59  0.61 -0.24      
+    ##         amp_f2       0.004567 0.06758   0.77  0.94 -0.58 -0.44  0.28 -0.96
     ## Number of obs: 6804, groups:  cond, 81
     ## 
     ## Fixed effects:
     ##                             Estimate Std. Error z value Pr(>|z|)    
-    ## (Intercept)                 2.868785   0.089415  32.084  < 2e-16 ***
-    ## velFac                     -3.419003   0.182655 -18.718  < 2e-16 ***
-    ## mask_time_f1                0.029953   0.076755   0.390  0.69636    
-    ## mask_time_f2               -0.133026   0.061532  -2.162  0.03063 *  
-    ## mask_time_f3               -0.047284   0.045238  -1.045  0.29592    
-    ## amp_f1                     -0.394352   0.051506  -7.656 1.91e-14 ***
-    ## amp_f2                      0.006017   0.024478   0.246  0.80581    
-    ## velFac:mask_time_f1         0.771104   0.040390  19.091  < 2e-16 ***
-    ## velFac:mask_time_f2         0.386631   0.033697  11.474  < 2e-16 ***
-    ## velFac:mask_time_f3        -0.258534   0.034954  -7.396 1.40e-13 ***
-    ## velFac:amp_f1               0.428286   0.026170  16.365  < 2e-16 ***
-    ## velFac:amp_f2              -0.052515   0.027118  -1.936  0.05281 .  
-    ## mask_time_f1:amp_f1         0.118675   0.025662   4.624 3.76e-06 ***
-    ## mask_time_f2:amp_f1         0.119418   0.021874   5.459 4.78e-08 ***
-    ## mask_time_f3:amp_f1        -0.040817   0.020122  -2.028  0.04251 *  
-    ## mask_time_f1:amp_f2        -0.014269   0.024842  -0.574  0.56570    
-    ## mask_time_f2:amp_f2        -0.028902   0.021787  -1.327  0.18466    
-    ## mask_time_f3:amp_f2         0.008791   0.020652   0.426  0.67033    
-    ## velFac:mask_time_f1:amp_f1 -0.016203   0.029767  -0.544  0.58622    
-    ## velFac:mask_time_f2:amp_f1 -0.075743   0.025557  -2.964  0.00304 ** 
-    ## velFac:mask_time_f3:amp_f1 -0.018053   0.025286  -0.714  0.47525    
-    ## velFac:mask_time_f1:amp_f2  0.004582   0.029290   0.156  0.87568    
-    ## velFac:mask_time_f2:amp_f2  0.024758   0.025700   0.963  0.33538    
-    ## velFac:mask_time_f3:amp_f2 -0.002055   0.026030  -0.079  0.93706    
+    ## (Intercept)                 2.868907   0.089498  32.056  < 2e-16 ***
+    ## velFac                     -3.418719   0.182897 -18.692  < 2e-16 ***
+    ## mask_time_f1                0.030185   0.076836   0.393  0.69443    
+    ## mask_time_f2               -0.132961   0.061562  -2.160  0.03079 *  
+    ## mask_time_f3               -0.047349   0.045275  -1.046  0.29565    
+    ## amp_f1                     -0.394341   0.051562  -7.648 2.04e-14 ***
+    ## amp_f2                      0.006173   0.024485   0.252  0.80094    
+    ## velFac:mask_time_f1         0.771113   0.040388  19.093  < 2e-16 ***
+    ## velFac:mask_time_f2         0.386618   0.033697  11.473  < 2e-16 ***
+    ## velFac:mask_time_f3        -0.258624   0.034955  -7.399 1.37e-13 ***
+    ## velFac:amp_f1               0.428287   0.026170  16.366  < 2e-16 ***
+    ## velFac:amp_f2              -0.052694   0.027120  -1.943  0.05201 .  
+    ## mask_time_f1:amp_f1         0.118582   0.025662   4.621 3.82e-06 ***
+    ## mask_time_f2:amp_f1         0.119747   0.021875   5.474 4.40e-08 ***
+    ## mask_time_f3:amp_f1        -0.040856   0.020122  -2.030  0.04231 *  
+    ## mask_time_f1:amp_f2        -0.014037   0.024843  -0.565  0.57206    
+    ## mask_time_f2:amp_f2        -0.029261   0.021787  -1.343  0.17927    
+    ## mask_time_f3:amp_f2         0.008993   0.020652   0.435  0.66324    
+    ## velFac:mask_time_f1:amp_f1 -0.016116   0.029767  -0.541  0.58823    
+    ## velFac:mask_time_f2:amp_f1 -0.076100   0.025558  -2.978  0.00291 ** 
+    ## velFac:mask_time_f3:amp_f1 -0.018040   0.025286  -0.713  0.47558    
+    ## velFac:mask_time_f1:amp_f2  0.004341   0.029291   0.148  0.88219    
+    ## velFac:mask_time_f2:amp_f2  0.025166   0.025700   0.979  0.32748    
+    ## velFac:mask_time_f3:amp_f2 -0.002314   0.026031  -0.089  0.92916    
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
