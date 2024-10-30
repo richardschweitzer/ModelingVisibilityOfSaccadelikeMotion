@@ -319,6 +319,8 @@ ggplot(n_samples, aes(x = abs_vel, y = dur_2, color = amp, group = amp,
        color = "Motion amplitude [dva]")
 ```
 
+
+
 # Preparation of the model
 
 Now we'll empirically determine the maximum weight that can be achieved in this simulation - normalization will be relative to this estimated maximum, which heavily depends on the shape of the spatial and temporal response functions.  
@@ -1454,4 +1456,85 @@ plot_grid(plotlist = snapshot_plots_list, nrow = 1, align = "hv", greedy = TRUE)
 ```
 
 
+<!-- # Revision stage, some code -->
+
+<!-- Think about Reviewer #3's suggestion: -->
+<!-- *3. If visibility thresholds depend on duration a stimulus is exposed, then perhaps looking at how visibility thresholds vary with the duration of exposure per unit amplitude might yield some interesting insights. For example, does the duration of exposure scale linearly with total amplitude or not?* -->
+
+<!-- ```{r} -->
+<!-- setDT(sim_p_correct_nothres_all_expand) -->
+<!-- test_dat <- sim_p_correct_nothres_all_expand[spatial_rf_sd==sort(unique(spatial_rf_sd))[1] & -->
+<!--                                                visual_scale==sort(unique(visual_scale))[6]] -->
+<!-- test_dat[ , amp := as.numeric(gsub(x = amp_f, pattern = " dva", replacement = ""))] -->
+<!-- # merge with trial summaries -->
+<!-- test_dat <- merge.data.table(test_dat, unique_conditions, by = c("amp", "velFac")) -->
+<!-- test_dat[ , velCurrent := vel*velFac] -->
+<!-- test_dat[ , durCurrent := amp/velCurrent * 1000] -->
+
+<!-- # plot over velFac -->
+<!-- ggplot(test_dat, aes(x = velFac, y = glm_predict_2, color = amp_f)) +  -->
+<!--   geom_line(size = 2.5) +  -->
+<!--   facet_wrap(~mask_time_f) + theme_minimal() -->
+
+<!-- # plot over vel -->
+<!-- ggplot(test_dat, aes(x = velCurrent, y = glm_predict_2, color = amp_f)) +  -->
+<!--   geom_line(size = 2.5) +  -->
+<!--   facet_wrap(~mask_time_f) + theme_minimal() -->
+<!-- ggplot(test_dat, aes(x = amp/durCurrent, y = glm_predict_2, color = amp_f)) +  -->
+<!--   geom_line(size = 2.5) +  -->
+<!--   facet_wrap(~mask_time_f) + theme_minimal() -->
+
+<!-- # plot over dur -->
+<!-- ggplot(test_dat, aes(x = durCurrent, y = glm_predict_2, color = amp_f)) +  -->
+<!--   geom_line(size = 2.5) +  -->
+<!--   facet_wrap(~mask_time_f) + theme_minimal() -->
+
+<!-- # plot over dur/amp -->
+<!-- ggplot(test_dat, aes(x = durCurrent/amp, y = glm_predict_2, color = amp_f)) +  -->
+<!--   geom_line(size = 2.5) +  -->
+<!--   facet_wrap(~mask_time_f) + theme_minimal() -->
+
+<!-- ``` -->
+
+<!-- Martin says: "It seems to me that this duration of exposure per unit amplitude is basically the slope of the function in Figure 3c. Since that is a linear function, I think the answer is that visibility thresholds do not vary with duration of exposure per unit amplitude ..." -->
+
+<!-- I will thus try to convert these thresholds to duration thresholds... -->
+
+<!-- ```{r} -->
+<!-- asd <- merge.data.table(superexpand_true, unique(unique_conditions[ , c("amp", "vel", "dur")]),  -->
+<!--                         by = c("amp")) -->
+<!-- # compute absolute velocity thresholds -->
+<!-- asd[ , thres_vel_abs_true := vel*thres_true] -->
+<!-- ggplot(asd, aes(x = amp, y = thres_vel_abs_true, color = mask_time_f)) +  -->
+<!--   geom_line() -->
+<!-- # compute duration thresholds -->
+<!-- asd[ , thres_dur_abs_true := amp/thres_vel_abs_true * 1000] -->
+<!-- ggplot(asd, aes(x = amp, y = thres_dur_abs_true, color = mask_time_f)) +  -->
+<!--   geom_line() -->
+
+<!-- summary(lm(data = asd[mask_time_f=="0 ms" &  -->
+<!--                         round(visual_scale)==100 & round(spatial_rf_sd)==5],  -->
+<!--            formula = thres_dur_abs_true ~ amp)) -->
+<!-- summary(lm(data = asd[mask_time_f=="12.5 ms" &  -->
+<!--                         round(visual_scale)==100 & round(spatial_rf_sd)==5],  -->
+<!--            formula = thres_dur_abs_true ~ amp)) -->
+<!-- summary(lm(data = asd[mask_time_f=="50 ms" &  -->
+<!--                         round(visual_scale)==100 & round(spatial_rf_sd)==5],  -->
+<!--            formula = thres_dur_abs_true ~ amp)) -->
+<!-- summary(lm(data = asd[mask_time_f=="200 ms" &  -->
+<!--                         round(visual_scale)==100 & round(spatial_rf_sd)==5],  -->
+<!--            formula = thres_dur_abs_true ~ amp)) -->
+<!-- summary(lm(data = asd[(mask_time_f=="50 ms" | mask_time_f=="200 ms") &  -->
+<!--                         round(visual_scale)==100 & round(spatial_rf_sd)==5],  -->
+<!--            formula = thres_dur_abs_true ~ amp)) -->
+
+<!-- # do this for every threshold in the grid -->
+<!-- asd[ , thres_vel_abs := vel*thres] -->
+<!-- asd[ , thres_dur_abs := amp/thres_vel_abs * 1000] -->
+<!-- ggplot(asd, aes(x = amp, y = thres_dur_abs, color = mask_time_f)) +  -->
+<!--   geom_line() +  -->
+<!--   facet_wrap(~visual_scale+spatial_rf_sd, nrow = 10, scales = "free_y") -->
+
+
+<!-- ``` -->
 
